@@ -17,9 +17,11 @@ export default function HomePage() {
       </p>
 
       <div className="relative z-10 flex flex-col items-center text-center">
-        <h1 className="text-6xl font-extrabold tracking-tight text-white sm:text-7xl md:text-8xl">
-          VIDLIX
-        </h1>
+        <img
+          src="/logo-wordmark-white.png"
+          alt="Vidlix"
+          className="h-[60px] w-auto sm:h-[75px] md:h-[90px]"
+        />
         <p className="mt-4 max-w-sm text-sm text-slate-400 sm:text-base">
           Creator distribution, paid on real performance.
         </p>

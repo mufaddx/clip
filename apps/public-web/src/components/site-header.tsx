@@ -13,13 +13,19 @@ const NAV_LINKS = [
   { href: "/faq", label: "FAQ" },
 ];
 
-export function Logo({ className = "" }: { className?: string }) {
+// Actual brand wordmark (public/logo-wordmark-white.png, 1061x250 —
+// height set explicitly per usage below, width left to scale so the image
+// never distorts). The site is dark everywhere now, so the white variant
+// is the only one this ever needs to render.
+export function Logo({ className = "", height = 28 }: { className?: string; height?: number }) {
   return (
-    <Link href="/" className={`flex items-center gap-2 ${className}`}>
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-        V
-      </span>
-      <span className="text-lg font-bold tracking-tight text-white">Vidlix</span>
+    <Link href="/" className={`flex items-center ${className}`}>
+      <img
+        src="/logo-wordmark-white.png"
+        alt="Vidlix"
+        height={height}
+        style={{ height, width: "auto" }}
+      />
     </Link>
   );
 }
