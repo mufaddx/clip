@@ -4,45 +4,40 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button, Card } from "@clip/ui";
 import type { LoginResponseDto, SignupRoleChoice } from "@clip/types";
-import { apiFetch } from "../../../lib/api-client";
+import { apiFetch, ApiError } from "../../../lib/api-client";
 import { appUrlForRole } from "../../../lib/app-urls";
 import { IconMegaphone, IconInstagram, IconArrowRight } from "../../../components/icons";
 
-// /signup — first asks "How do you want to use CLIP?" per
-// docs/users/ONBOARDING_FLOW.md. That choice is irreversible by the user
-// afterward, so it's a deliberate separate step, not a form field.
+// /signup — reached from the homepage's Brand/Clipper picker (role arrives
+// preselected via ?as=), so the common path never shows a separate "how do
+// you want to use CLIP" step. Visiting /signup directly (no query param)
+// still shows that chooser as a fallback — see
+// docs/users/ONBOARDING_FLOW.md.
+//
+// One form handles both new and returning users: it tries to register the
+// email, and if the backend says that email is already taken
+// (EMAIL_IN_USE), it quietly logs in with the same credentials instead —
+// so the user never has to know or care which one it was.
 function RoleOption({
-  active,
   icon,
   title,
-  description,
   onClick,
 }: {
-  active: boolean;
   icon: React.ReactNode;
   title: string;
-  description: string;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-start gap-4 rounded-lg border p-4 text-left transition-colors ${
-        active ? "border-brand-500 bg-brand-50" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-      }`}
+      className="flex w-full items-center gap-3 rounded-lg border border-slate-200 p-4 text-left transition-colors hover:border-brand-300 hover:bg-brand-50"
     >
-      <span
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-          active ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600"
-        }`}
-      >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
         {icon}
       </span>
-      <span>
-        <span className="block font-semibold text-ink">{title}</span>
-        <span className="mt-0.5 block text-sm text-slate-500">{description}</span>
-      </span>
+      <span className="font-semibold text-ink">{title}</span>
+      <IconArrowRight className="ml-auto h-4 w-4 text-slate-400" />
     </button>
   );
 }
@@ -60,33 +55,12 @@ function SignupForm() {
 
   if (!roleChoice) {
     return (
-      <Card className="w-full max-w-md shadow-md">
-        <h1 className="text-2xl font-semibold text-ink">How do you want to use CLIP?</h1>
-        <p className="mt-1 text-sm text-slate-500">You can&apos;t switch this later, so pick the one that fits.</p>
-
-        <div className="mt-6 flex flex-col gap-3">
-          <RoleOption
-            active={false}
-            icon={<IconMegaphone className="h-5 w-5" />}
-            title="I am a Brand"
-            description="I want to fund a campaign and get content distributed by creators."
-            onClick={() => setRoleChoice("BRAND")}
-          />
-          <RoleOption
-            active={false}
-            icon={<IconInstagram className="h-5 w-5" />}
-            title="I am a Clipper"
-            description="I create content and want to get paid for verified performance."
-            onClick={() => setRoleChoice("CLIPPER")}
-          />
+      <Card className="w-full max-w-sm shadow-md">
+        <h1 className="text-xl font-semibold text-ink">Continue as</h1>
+        <div className="mt-5 flex flex-col gap-3">
+          <RoleOption icon={<IconMegaphone className="h-5 w-5" />} title="Brand" onClick={() => setRoleChoice("BRAND")} />
+          <RoleOption icon={<IconInstagram className="h-5 w-5" />} title="Clipper" onClick={() => setRoleChoice("CLIPPER")} />
         </div>
-
-        <p className="mt-6 text-center text-sm text-slate-500">
-          Already have an account?{" "}
-          <a href="/login" className="font-medium text-brand-600 hover:underline">
-            Log in
-          </a>
-        </p>
       </Card>
     );
   }
@@ -96,10 +70,25 @@ function SignupForm() {
     setError(null);
     setLoading(true);
     try {
-      const res = await apiFetch<LoginResponseDto>("/v1/auth/register", {
-        method: "POST",
-        body: JSON.stringify({ email, password, roleChoice }),
-      });
+      let res: LoginResponseDto;
+      try {
+        res = await apiFetch<LoginResponseDto>("/v1/auth/register", {
+          method: "POST",
+          body: JSON.stringify({ email, password, roleChoice }),
+        });
+      } catch (err) {
+        // Already have an account with this email → this is a returning
+        // user, not a failed signup. Log them in with the same credentials
+        // instead of making them start over on a different form.
+        if (err instanceof ApiError && err.code === "EMAIL_IN_USE") {
+          res = await apiFetch<LoginResponseDto>("/v1/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ email, password }),
+          });
+        } else {
+          throw err;
+        }
+      }
       window.location.href = `${appUrlForRole(res.user.role)}${res.redirectTo}`;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -116,14 +105,7 @@ function SignupForm() {
       >
         <IconArrowRight className="h-3.5 w-3.5 rotate-180" /> Back
       </button>
-      <h1 className="text-2xl font-semibold text-ink">
-        Create your {roleChoice === "BRAND" ? "brand" : "clipper"} account
-      </h1>
-      <p className="mt-1 text-sm text-slate-500">
-        {roleChoice === "BRAND"
-          ? "Set up your first campaign in minutes."
-          : "Start discovering campaigns that fit your audience."}
-      </p>
+      <h1 className="text-xl font-semibold text-ink">Continue as {roleChoice === "BRAND" ? "a Brand" : "a Clipper"}</h1>
 
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
@@ -157,11 +139,11 @@ function SignupForm() {
         ) : null}
 
         <Button type="submit" loading={loading} size="lg" className="mt-2 w-full">
-          Create account
+          Continue
         </Button>
 
         <p className="text-center text-xs text-slate-400">
-          By continuing you agree to CLIP&apos;s{" "}
+          New account? By continuing you agree to CLIP&apos;s{" "}
           <a href="/terms" className="underline hover:text-slate-600">
             Terms
           </a>{" "}
