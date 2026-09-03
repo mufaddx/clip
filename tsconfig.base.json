@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": false,
+    "baseUrl": ".",
+    "paths": {
+      "@clip/ui": ["packages/ui/src/index.ts"],
+      "@clip/ui/*": ["packages/ui/src/*"],
+      "@clip/config": ["packages/config/src/index.ts"],
+      "@clip/config/*": ["packages/config/src/*"],
+      "@clip/types": ["packages/types/src/index.ts"],
+      "@clip/types/*": ["packages/types/src/*"],
+      "@clip/utilities": ["packages/utilities/src/index.ts"],
+      "@clip/utilities/*": ["packages/utilities/src/*"],
+      "@clip/db": ["packages/db/src/index.ts"],
+      "@clip/db/*": ["packages/db/src/*"]
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": [".env"],
+  "globalEnv": [
+    "PRIMARY_DOMAIN",
+    "PUBLIC_APP_URL",
+    "CLIPPER_APP_URL",
+    "BRAND_APP_URL",
+    "ADMIN_APP_URL",
+    "API_URL",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "AUTH_SECRET",
+    "AUTH_COOKIE_DOMAIN",
+    "META_APP_ID",
+    "META_APP_SECRET",
+    "META_REDIRECT_URI",
+    "PAYMENT_PROVIDER_KEY",
+    "PAYMENT_PROVIDER_SECRET",
+    "NODE_ENV"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    }
+  }
+}
