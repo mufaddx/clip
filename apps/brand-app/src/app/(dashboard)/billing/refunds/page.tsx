@@ -1,6 +1,6 @@
 import { PageHeader, Card, Table, TableHead, TableRow, TableHeaderCell, TableCell, EmptyState } from "@clip/ui";
 import { formatCurrency, formatDateTime } from "@clip/utilities";
-import { apiFetch } from "../../../../lib/api-client";
+import { apiFetch } from "../../../../lib/api-client.server";
 import type { LedgerEntry } from "../../../../lib/types";
 
 // /billing/refunds — see docs/finance/REFUND_SYSTEM.md.

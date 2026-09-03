@@ -22,6 +22,10 @@ const envSchema = z.object({
   AUTH_REFRESH_TOKEN_TTL: z.string().default("30d"),
 
   DATABASE_URL: z.string(),
+  // Only needed when DATABASE_URL is a pooled (pgbouncer) connection, e.g.
+  // Supabase — `prisma migrate` uses this direct connection instead. See
+  // docs/deployment/ENVIRONMENT_STRATEGY.md.
+  DIRECT_URL: z.string().optional(),
   REDIS_URL: z.string(),
 
   META_APP_ID: z.string().optional(),

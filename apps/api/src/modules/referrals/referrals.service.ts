@@ -136,8 +136,8 @@ export class ReferralsService {
    * flags for human review, never auto-bans.
    */
   private detectFraud(referral: { referrer: { email: string }; referred: { email: string } }): string | null {
-    const [refUser, refDomain] = referral.referrer.email.split("@");
-    const [redUser, redDomain] = referral.referred.email.split("@");
+    const [refUser = "", refDomain] = referral.referrer.email.split("@");
+    const [redUser = "", redDomain] = referral.referred.email.split("@");
 
     if (refDomain === redDomain && levenshteinClose(refUser, redUser)) {
       return "Referrer and referred email look like the same person (self-referral pattern).";

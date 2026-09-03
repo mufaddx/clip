@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PageHeader, Card, EmptyState, Table, TableHead, TableRow, TableHeaderCell, TableCell } from "@clip/ui";
-import { apiFetch } from "../../../lib/api-client";
+import { apiFetch } from "../../../lib/api-client.server";
 import type { Campaign } from "../../../lib/types";
 
 interface CreatorRow {
@@ -59,7 +59,7 @@ export default async function CreatorsPage() {
         )}
       </Card>
       <p className="mt-3 text-xs text-slate-400">
-        Looking for one campaign's creators specifically? Open it from <Link href="/campaigns" className="underline">Campaigns</Link>.
+        Looking for one campaign&apos;s creators specifically? Open it from <Link href="/campaigns" className="underline">Campaigns</Link>.
       </p>
     </div>
   );

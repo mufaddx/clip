@@ -6,7 +6,8 @@ import { Button, Card, Field, Input, Select, Textarea, PageHeader } from "@clip/
 import { formatCurrency } from "@clip/utilities";
 import { apiFetchClient } from "../../../../lib/api-client";
 
-const OBJECTIVES = ["DISTRIBUTION", "VIEWS", "REACH", "ENGAGEMENT", "QUALITY_PERFORMANCE"];
+const OBJECTIVES = ["DISTRIBUTION", "VIEWS", "REACH", "ENGAGEMENT", "QUALITY_PERFORMANCE"] as const;
+const DEFAULT_OBJECTIVE: (typeof OBJECTIVES)[number] = "VIEWS";
 const STEPS = ["Basic Information", "Content", "Creator Requirements", "Performance Targets", "Budget", "Review"];
 
 /**
@@ -25,7 +26,7 @@ export default function CreateCampaignPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [description, setDescription] = useState("");
-  const [objective, setObjective] = useState(OBJECTIVES[1]);
+  const [objective, setObjective] = useState<string>(DEFAULT_OBJECTIVE);
   const [mediaUrl, setMediaUrl] = useState("");
   const [caption, setCaption] = useState("");
   const [hashtags, setHashtags] = useState("");
@@ -129,7 +130,7 @@ export default function CreateCampaignPage() {
           <div>
             <p className="text-sm text-slate-600">
               Performance target: <strong>{objective.replace("_", " ")}</strong> (set in Step 1 — this determines which
-              qualified-performance rule set applies to this campaign's reels).
+              qualified-performance rule set applies to this campaign&apos;s reels).
             </p>
           </div>
         )}

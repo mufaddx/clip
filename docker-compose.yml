@@ -7,7 +7,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: clip
-      POSTGRES_PASSWORD: clip
+      POSTGRES_PASSWORD: lanBjBoIjmck7d3k
       POSTGRES_DB: clip_dev
     ports:
       - "5432:5432"

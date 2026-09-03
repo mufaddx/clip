@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { prisma } from "@clip/db";
+import { prisma, type Prisma } from "@clip/db";
 import type { UserRole } from "@clip/types";
 
 export interface AuditLogInput {
@@ -30,8 +30,8 @@ export class AuditService {
         action: input.action,
         targetType: input.targetType,
         targetId: input.targetId,
-        before: input.before ?? undefined,
-        after: input.after ?? undefined,
+        before: (input.before ?? undefined) as Prisma.InputJsonValue | undefined,
+        after: (input.after ?? undefined) as Prisma.InputJsonValue | undefined,
         ipAddress: input.ipAddress,
         userAgent: input.userAgent,
       },

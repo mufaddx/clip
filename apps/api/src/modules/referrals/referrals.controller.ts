@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Param, Patch, Query } from "@nestjs/common";
 import type { SessionUser } from "@clip/types";
 import type { ReferralStatus } from "@clip/db";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";

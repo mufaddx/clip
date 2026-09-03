@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { prisma } from "@clip/db";
+import { prisma, type Prisma } from "@clip/db";
 import { notificationsQueue } from "../../workers/queues";
 
 /**
@@ -19,7 +19,9 @@ export class NotificationsService {
 
     let notification = null;
     if (inAppEnabled) {
-      notification = await prisma.notification.create({ data: { userId, type, title, body, data } });
+      notification = await prisma.notification.create({
+        data: { userId, type, title, body, data: data as Prisma.InputJsonValue | undefined },
+      });
     }
 
     if (emailEnabled) {

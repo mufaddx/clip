@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageHeader, StatCard, Card, CardHeader, CardTitle, EmptyState, CampaignStatusBadge, Button } from "@clip/ui";
 import { formatCurrency } from "@clip/utilities";
-import { apiFetch } from "../../../lib/api-client";
+import { apiFetch } from "../../../lib/api-client.server";
 import type { Campaign, Wallet } from "../../../lib/types";
 
 interface BrandOverview {

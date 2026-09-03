@@ -7,7 +7,8 @@ import { formatCurrency } from "@clip/utilities";
 import { apiFetchClient } from "../../../../lib/api-client";
 import type { PlatformOverview } from "../../../../lib/types";
 
-const OBJECTIVES = ["DISTRIBUTION", "VIEWS", "REACH", "ENGAGEMENT", "QUALITY_PERFORMANCE"];
+const OBJECTIVES = ["DISTRIBUTION", "VIEWS", "REACH", "ENGAGEMENT", "QUALITY_PERFORMANCE"] as const;
+const DEFAULT_OBJECTIVE: (typeof OBJECTIVES)[number] = "VIEWS";
 
 interface PerformanceRule {
   version: number;
@@ -54,7 +55,7 @@ function Overview() {
 }
 
 function RuleEditor() {
-  const [objective, setObjective] = useState(OBJECTIVES[1]);
+  const [objective, setObjective] = useState<string>(DEFAULT_OBJECTIVE);
   const [rule, setRule] = useState<PerformanceRule | null>(null);
   const [weights, setWeights] = useState({ watchQuality: 0.2, engagementQuality: 0.25, reachQuality: 0.2, campaignCompliance: 0.2, historicalReliability: 0.15 });
   const [anomaly, setAnomaly] = useState(3);

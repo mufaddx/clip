@@ -1,6 +1,6 @@
 import { PageHeader, StatCard, Card, CardHeader, CardTitle, EmptyState } from "@clip/ui";
 import { formatCurrency } from "@clip/utilities";
-import { apiFetch } from "../../../lib/api-client";
+import { apiFetch } from "../../../lib/api-client.server";
 import type { PlatformOverview } from "../../../lib/types";
 
 // Admin dashboard home — see docs/ui-ux/DASHBOARD_LAYOUTS.md "Admin dashboard home".

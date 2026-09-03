@@ -1,6 +1,6 @@
 import { PageHeader, Card, StatCard, EmptyState } from "@clip/ui";
 import { formatCurrency } from "@clip/utilities";
-import { apiFetch } from "../../../lib/api-client";
+import { apiFetch } from "../../../lib/api-client.server";
 
 interface BrandOverview {
   totalCampaigns: number;

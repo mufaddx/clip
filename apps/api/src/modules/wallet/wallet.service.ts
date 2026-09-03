@@ -14,6 +14,16 @@ const BUCKET_FIELD: Record<LedgerBucket, keyof Prisma.WalletUncheckedUpdateInput
 };
 
 /**
+ * Reads a known-present balance column off a Wallet row by dynamic field
+ * name. The non-null assertion is safe here — these are real columns on
+ * every Wallet row, never actually missing; `noUncheckedIndexedAccess`
+ * just can't know that for a dynamic string key.
+ */
+function readBucket(row: object, field: string): number {
+  return (row as unknown as Record<string, number>)[field]!;
+}
+
+/**
  * The only module allowed to mutate wallet balances — every mutation here
  * is a paired, transactional wallet_ledger write, never a raw balance
  * update. See docs/finance/LEDGER_ARCHITECTURE.md invariants:
@@ -65,7 +75,7 @@ export class WalletService {
     const wallet = await tx.wallet.findUniqueOrThrow({ where: { id: walletId } });
     const fromField = BUCKET_FIELD[from];
     const toField = BUCKET_FIELD[to];
-    const currentFrom = (wallet as unknown as Record<string, number>)[fromField as string];
+    const currentFrom = readBucket(wallet, fromField);
 
     if (currentFrom < amount) {
       throw new BadRequestException({
@@ -95,7 +105,7 @@ export class WalletService {
         relatedTransactionId,
         relatedEntityType: opts.relatedEntityType,
         relatedEntityId: opts.relatedEntityId,
-        balanceAfter: (updated as unknown as Record<string, number>)[fromField as string],
+        balanceAfter: readBucket(updated, fromField),
         idempotencyKey: opts.idempotencyKeyBase ? `${opts.idempotencyKeyBase}:debit` : undefined,
         createdBy: opts.createdBy,
       },
@@ -111,7 +121,7 @@ export class WalletService {
         relatedTransactionId,
         relatedEntityType: opts.relatedEntityType,
         relatedEntityId: opts.relatedEntityId,
-        balanceAfter: (updated as unknown as Record<string, number>)[toField as string],
+        balanceAfter: readBucket(updated, toField),
         idempotencyKey: opts.idempotencyKeyBase ? `${opts.idempotencyKeyBase}:credit` : undefined,
         createdBy: opts.createdBy,
       },
@@ -140,7 +150,7 @@ export class WalletService {
         source,
         relatedEntityType: opts.relatedEntityType,
         relatedEntityId: opts.relatedEntityId,
-        balanceAfter: (updated as unknown as Record<string, number>)[field as string],
+        balanceAfter: readBucket(updated, field),
         idempotencyKey: opts.idempotencyKey,
       },
     });
@@ -158,7 +168,7 @@ export class WalletService {
   ) {
     const field = BUCKET_FIELD[bucket];
     const wallet = await tx.wallet.findUniqueOrThrow({ where: { id: walletId } });
-    const current = (wallet as unknown as Record<string, number>)[field as string];
+    const current = readBucket(wallet, field);
     if (current < amount) {
       throw new BadRequestException({ code: "INSUFFICIENT_BALANCE", message: `Insufficient ${bucket} balance.` });
     }
@@ -172,7 +182,7 @@ export class WalletService {
         source,
         relatedEntityType: opts.relatedEntityType,
         relatedEntityId: opts.relatedEntityId,
-        balanceAfter: (updated as unknown as Record<string, number>)[field as string],
+        balanceAfter: readBucket(updated, field),
         idempotencyKey: opts.idempotencyKey,
       },
     });

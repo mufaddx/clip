@@ -1,6 +1,6 @@
 import { PageHeader, Card, Table, TableHead, TableRow, TableHeaderCell, TableCell, EmptyState, Badge } from "@clip/ui";
 import { formatCurrency, formatDateTime } from "@clip/utilities";
-import { apiFetch } from "../../../../lib/api-client";
+import { apiFetch } from "../../../../lib/api-client.server";
 import type { LedgerEntry } from "../../../../lib/types";
 
 // /wallet/transactions — see docs/finance/LEDGER_ARCHITECTURE.md.

@@ -6,8 +6,13 @@
     "target": "ES2022",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "outDir": "dist",
-    "rootDir": "src"
+    "outDir": "dist"
+    // No explicit rootDir: apps/api imports workspace packages (@clip/db,
+    // @clip/config, @clip/types) whose source lives outside apps/api/src
+    // via path aliases — an explicit rootDir here makes tsc reject those
+    // as "outside rootDir" (TS6059). Nest's own build (nest-cli.json) is
+    // unaffected; this only matters for `tsc --noEmit` typechecking and
+    // for `nest build`'s emitted dist layout, which is a later concern.
   },
   "include": ["src"]
 }

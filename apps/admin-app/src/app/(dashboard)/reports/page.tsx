@@ -1,6 +1,6 @@
 import { PageHeader, Card, StatCard, EmptyState } from "@clip/ui";
 import { formatCurrency } from "@clip/utilities";
-import { apiFetch } from "../../../lib/api-client";
+import { apiFetch } from "../../../lib/api-client.server";
 import type { PlatformOverview } from "../../../lib/types";
 
 // /reports — see docs/operations/REPORTING_SYSTEM.md. Export isn't wired up yet.
