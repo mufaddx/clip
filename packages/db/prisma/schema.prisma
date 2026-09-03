@@ -1,0 +1,838 @@
+// CLIP platform database schema.
+// Source of truth for structure lives in /docs/database/*.md — keep both in sync.
+//
+// Simplification note: docs/database/DATABASE_SCHEMA.md describes a
+// roles/permissions/user_roles RBAC trio. Because CLIP's business rule is
+// "one primary role per account" (see docs/product/USER_ROLES.md), that is
+// implemented here as a single `role` enum on User instead of join tables —
+// the enum gives the same guarantee with less machinery. Brand team members'
+// *scoped* permissions (which are genuinely a set, not a single value) are
+// still modeled as a real list on TeamMember.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  SUPPORT
+  FINANCE_ADMIN
+  BRAND_OWNER
+  BRAND_TEAM_MEMBER
+  CLIPPER
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+}
+
+enum TeamPermission {
+  CAMPAIGNS_VIEW
+  CAMPAIGNS_CREATE
+  CAMPAIGNS_EDIT
+  CAMPAIGNS_APPROVE_BUDGET
+  ANALYTICS_VIEW
+  REPORTS_VIEW
+  WALLET_VIEW
+  TEAM_INVITE
+}
+
+enum CampaignStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_REVIEW
+  APPROVED
+  FUNDED
+  LIVE
+  PAUSED
+  COMPLETED
+  REJECTED
+  CANCELLED
+  EXPIRED
+}
+
+enum CampaignObjective {
+  DISTRIBUTION
+  VIEWS
+  REACH
+  ENGAGEMENT
+  QUALITY_PERFORMANCE
+}
+
+enum CampaignCreatorStatus {
+  ACCEPTED
+  SUBMITTED
+  TRACKING
+  COMPLETED
+  REMOVED
+}
+
+enum ReelVerificationStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  REJECTED
+  MANUAL_REVIEW
+  REMOVED
+}
+
+enum InstagramConnectionHealth {
+  HEALTHY
+  EXPIRING_SOON
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
+enum WalletOwnerType {
+  BRAND
+  CREATOR
+}
+
+enum LedgerBucket {
+  AVAILABLE
+  LOCKED
+  SPENT
+  REFUNDABLE
+  PENDING
+  PROCESSING
+  WITHDRAWN
+}
+
+enum LedgerEntryType {
+  CREDIT
+  DEBIT
+}
+
+enum LedgerSource {
+  DEPOSIT
+  CAMPAIGN_FUND
+  CAMPAIGN_SPEND
+  EARNING
+  WITHDRAWAL
+  REFUND
+  REFERRAL_REWARD
+  ADJUSTMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum PaymentPurpose {
+  DEPOSIT
+  PAYOUT
+  REFUND
+}
+
+enum WithdrawalStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  PROCESSING
+  PAID
+  FAILED
+}
+
+enum ReferralStatus {
+  PENDING
+  ELIGIBLE
+  REWARDED
+  EXPIRED
+  FLAGGED
+  DENIED
+}
+
+enum TicketCategory {
+  CAMPAIGN
+  PAYMENT
+  INSTAGRAM
+  VERIFICATION
+  PERFORMANCE
+  ACCOUNT
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_USER
+  RESOLVED
+  CLOSED
+}
+
+enum DisputeType {
+  CAMPAIGN
+  PERFORMANCE
+  PAYMENT
+  VERIFICATION
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  WAITING_FOR_EVIDENCE
+  RESOLVED
+  CLOSED
+}
+
+// ─────────────────────────────────────────────────────────────
+// Identity
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id                 String     @id @default(uuid())
+  email              String     @unique
+  passwordHash       String     @map("password_hash")
+  role               UserRole
+  status             UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt    DateTime?  @map("email_verified_at")
+  onboardingComplete Boolean    @default(false) @map("onboarding_complete")
+  onboardingStep     String?    @map("onboarding_step")
+  referralCode       String     @unique @default(uuid()) @map("referral_code")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  deletedAt          DateTime?  @map("deleted_at")
+
+  brandProfile   BrandProfile?
+  creatorProfile CreatorProfile?
+  adminProfile   AdminProfile?
+  teamMemberships TeamMember[]
+  wallet         Wallet?
+  notifications  Notification[]
+  notificationPreferences NotificationPreference[]
+  supportTickets SupportTicket[]
+  disputesOpened Dispute[]      @relation("DisputeOpenedBy")
+  auditLogs      AuditLog[]     @relation("AuditActor")
+  referralsMade  Referral[]     @relation("Referrer")
+  referralsReceived Referral[] @relation("Referred")
+  refreshTokens  RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model BrandProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique @map("user_id")
+  companyName String   @map("company_name")
+  website     String?
+  industry    String?
+  size        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id])
+  teamMembers  TeamMember[]
+  campaigns    Campaign[]
+  categories   BrandCategory[]
+
+  @@map("brand_profiles")
+}
+
+model CreatorProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique @map("user_id")
+  displayName  String   @map("display_name")
+  bio          String?
+  trustScore   Float    @default(50) @map("trust_score")
+  riskFlagged  Boolean  @default(false) @map("risk_flagged")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user               User                 @relation(fields: [userId], references: [id])
+  categories         CreatorCategory[]
+  instagramAccounts  InstagramAccount[]
+  campaignCreators   CampaignCreator[]
+  campaignInvitations CampaignInvitation[]
+
+  @@map("creator_profiles")
+}
+
+model AdminProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  invitedBy String?  @map("invited_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("admin_profiles")
+}
+
+model TeamMember {
+  id          String           @id @default(uuid())
+  brandId     String           @map("brand_id")
+  userId      String           @map("user_id")
+  permissions TeamPermission[]
+  invitedAt   DateTime         @default(now()) @map("invited_at")
+  acceptedAt  DateTime?        @map("accepted_at")
+  removedAt   DateTime?        @map("removed_at")
+
+  brand BrandProfile @relation(fields: [brandId], references: [id])
+  user  User         @relation(fields: [userId], references: [id])
+
+  @@unique([brandId, userId])
+  @@map("team_members")
+}
+
+model Category {
+  id   String @id @default(uuid())
+  name String @unique
+  slug String @unique
+
+  brandCategories   BrandCategory[]
+  creatorCategories CreatorCategory[]
+  requirements      CampaignRequirement[]
+
+  @@map("categories")
+}
+
+model BrandCategory {
+  brandId    String @map("brand_id")
+  categoryId String @map("category_id")
+
+  brand    BrandProfile @relation(fields: [brandId], references: [id])
+  category Category     @relation(fields: [categoryId], references: [id])
+
+  @@id([brandId, categoryId])
+  @@map("brand_categories")
+}
+
+model CreatorCategory {
+  creatorId  String @map("creator_id")
+  categoryId String @map("category_id")
+
+  creator  CreatorProfile @relation(fields: [creatorId], references: [id])
+  category Category       @relation(fields: [categoryId], references: [id])
+
+  @@id([creatorId, categoryId])
+  @@map("creator_categories")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Instagram integration
+// ─────────────────────────────────────────────────────────────
+
+model InstagramAccount {
+  id                String                    @id @default(uuid())
+  creatorId         String                    @map("creator_id")
+  platformUserId    String                    @unique @map("platform_user_id")
+  username          String
+  accountType       String?                   @map("account_type")
+  connectionHealth  InstagramConnectionHealth @default(HEALTHY) @map("connection_health")
+  lastSyncedAt      DateTime?                 @map("last_synced_at")
+  connectedAt       DateTime                  @default(now()) @map("connected_at")
+  disconnectedAt    DateTime?                 @map("disconnected_at")
+
+  creator          CreatorProfile   @relation(fields: [creatorId], references: [id])
+  token            InstagramToken?
+  campaignCreators CampaignCreator[]
+
+  @@index([creatorId])
+  @@map("instagram_accounts")
+}
+
+model InstagramToken {
+  id                  String   @id @default(uuid())
+  instagramAccountId   String   @unique @map("instagram_account_id")
+  encryptedAccessToken String   @map("encrypted_access_token")
+  expiresAt            DateTime @map("expires_at")
+  lastRefreshedAt       DateTime @default(now()) @map("last_refreshed_at")
+
+  instagramAccount InstagramAccount @relation(fields: [instagramAccountId], references: [id])
+
+  @@map("instagram_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Campaigns
+// ─────────────────────────────────────────────────────────────
+
+model Campaign {
+  id              String            @id @default(uuid())
+  brandId         String            @map("brand_id")
+  name            String
+  type            String?
+  objective       CampaignObjective @default(VIEWS)
+  description     String?
+  status          CampaignStatus    @default(DRAFT)
+  creatorBudget    Int               @map("creator_budget") // minor units
+  platformFeeRate  Float             @map("platform_fee_rate") // locked at funding time
+  currency        String            @default("INR")
+  maxParticipants Int?              @map("max_participants")
+  rejectedReason  String?           @map("rejected_reason")
+  submittedAt     DateTime?         @map("submitted_at")
+  approvedAt      DateTime?         @map("approved_at")
+  fundedAt        DateTime?         @map("funded_at")
+  liveAt          DateTime?         @map("live_at")
+  completedAt     DateTime?         @map("completed_at")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  brand         BrandProfile           @relation(fields: [brandId], references: [id])
+  assets        CampaignAsset[]
+  requirements  CampaignRequirement?
+  creators      CampaignCreator[]
+  invitations   CampaignInvitation[]
+
+  @@index([brandId])
+  @@index([status])
+  @@map("campaigns")
+}
+
+model CampaignAsset {
+  id              String   @id @default(uuid())
+  campaignId      String   @map("campaign_id")
+  mediaUrl        String   @map("media_url")
+  caption         String?
+  hashtags        String[]
+  requiredMentions String[] @map("required_mentions")
+  instructions    String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@map("campaign_assets")
+}
+
+model CampaignRequirement {
+  id                    String   @id @default(uuid())
+  campaignId            String   @unique @map("campaign_id")
+  minFollowers          Int?     @map("min_followers")
+  minAccountAgeDays     Int?     @map("min_account_age_days")
+  minTrustScore         Float?   @map("min_trust_score")
+  contentRestrictions   String[] @map("content_restrictions")
+
+  campaign   Campaign   @relation(fields: [campaignId], references: [id])
+  categories Category[]
+
+  @@map("campaign_requirements")
+}
+
+model CampaignCreator {
+  id                  String                @id @default(uuid())
+  campaignId          String                @map("campaign_id")
+  creatorId           String                @map("creator_id")
+  instagramAccountId  String                @map("instagram_account_id")
+  status              CampaignCreatorStatus @default(ACCEPTED)
+  acceptedAt          DateTime              @default(now()) @map("accepted_at")
+  completedAt         DateTime?             @map("completed_at")
+
+  campaign          Campaign          @relation(fields: [campaignId], references: [id])
+  creator           CreatorProfile    @relation(fields: [creatorId], references: [id])
+  instagramAccount  InstagramAccount  @relation(fields: [instagramAccountId], references: [id])
+  reels             CampaignReel[]
+
+  @@unique([campaignId, creatorId])
+  @@index([creatorId])
+  @@map("campaign_creators")
+}
+
+model CampaignInvitation {
+  id         String   @id @default(uuid())
+  campaignId String   @map("campaign_id")
+  creatorId  String   @map("creator_id")
+  invitedAt  DateTime @default(now()) @map("invited_at")
+
+  campaign Campaign       @relation(fields: [campaignId], references: [id])
+  creator  CreatorProfile @relation(fields: [creatorId], references: [id])
+
+  @@unique([campaignId, creatorId])
+  @@map("campaign_invitations")
+}
+
+model CampaignReel {
+  id                String                  @id @default(uuid())
+  campaignCreatorId String                  @map("campaign_creator_id")
+  platformMediaId   String                  @unique @map("platform_media_id")
+  url               String
+  publishedAt       DateTime?               @map("published_at")
+  status            ReelVerificationStatus  @default(PENDING_VERIFICATION)
+  submittedAt       DateTime                @default(now()) @map("submitted_at")
+
+  campaignCreator CampaignCreator @relation(fields: [campaignCreatorId], references: [id])
+  verifications   ReelVerification[]
+  metrics         ReelMetric?
+  snapshots       MetricSnapshot[]
+  calculations    PerformanceCalculation[]
+
+  @@index([campaignCreatorId])
+  @@map("campaign_reels")
+}
+
+model ReelVerification {
+  id           String                 @id @default(uuid())
+  reelId       String                 @map("reel_id")
+  status       ReelVerificationStatus
+  reason       String?
+  checkedAt    DateTime               @default(now()) @map("checked_at")
+
+  reel CampaignReel @relation(fields: [reelId], references: [id])
+
+  @@index([reelId])
+  @@map("reel_verifications")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Performance
+// ─────────────────────────────────────────────────────────────
+
+model ReelMetric {
+  id             String    @id @default(uuid())
+  reelId         String    @unique @map("reel_id")
+  views          Int?
+  reach          Int?
+  likes          Int?
+  comments       Int?
+  shares         Int?
+  saves          Int?
+  avgWatchTimeMs Int?      @map("avg_watch_time_ms")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  reel CampaignReel @relation(fields: [reelId], references: [id])
+
+  @@map("reel_metrics")
+}
+
+model MetricSnapshot {
+  id              String   @id @default(uuid())
+  reelId          String   @map("reel_id")
+  views           Int?
+  reach           Int?
+  likes           Int?
+  comments        Int?
+  shares          Int?
+  saves           Int?
+  avgWatchTimeMs  Int?     @map("avg_watch_time_ms")
+  availableFields String[] @map("available_fields")
+  collectedAt     DateTime @default(now()) @map("collected_at")
+
+  reel CampaignReel @relation(fields: [reelId], references: [id])
+
+  @@index([reelId, collectedAt])
+  @@map("metric_snapshots")
+}
+
+model PerformanceRule {
+  id            String            @id @default(uuid())
+  objective     CampaignObjective
+  version       Int
+  isActive      Boolean           @default(true) @map("is_active")
+  weights       Json
+  riskThresholds Json             @map("risk_thresholds")
+  createdBy     String?           @map("created_by")
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  calculations PerformanceCalculation[]
+
+  @@unique([objective, version])
+  @@map("performance_rules")
+}
+
+model PerformanceCalculation {
+  id           String   @id @default(uuid())
+  reelId       String   @map("reel_id")
+  ruleId       String   @map("rule_id")
+  snapshotId   String   @map("snapshot_id")
+  score        Float
+  computedAt   DateTime @default(now()) @map("computed_at")
+
+  reel CampaignReel    @relation(fields: [reelId], references: [id])
+  rule PerformanceRule @relation(fields: [ruleId], references: [id])
+
+  @@index([reelId])
+  @@map("performance_calculations")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Finance
+// ─────────────────────────────────────────────────────────────
+
+model Wallet {
+  id                String          @id @default(uuid())
+  userId            String          @unique @map("user_id")
+  ownerType         WalletOwnerType @map("owner_type")
+  availableBalance  Int             @default(0) @map("available_balance")
+  lockedBalance     Int             @default(0) @map("locked_balance")
+  spentBalance      Int             @default(0) @map("spent_balance")
+  refundableBalance Int             @default(0) @map("refundable_balance")
+  pendingBalance    Int             @default(0) @map("pending_balance")
+  processingBalance Int             @default(0) @map("processing_balance")
+  withdrawnBalance  Int             @default(0) @map("withdrawn_balance")
+  currency          String          @default("INR")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  user        User              @relation(fields: [userId], references: [id])
+  ledger      WalletLedgerEntry[]
+  withdrawals Withdrawal[]
+  refunds     Refund[]
+
+  @@map("wallets")
+}
+
+model WalletLedgerEntry {
+  id                    String          @id @default(uuid())
+  walletId              String          @map("wallet_id")
+  type                  LedgerEntryType
+  bucket                LedgerBucket
+  amount                Int
+  currency              String          @default("INR")
+  source                LedgerSource
+  relatedTransactionId  String?         @map("related_transaction_id")
+  relatedEntityType     String?         @map("related_entity_type")
+  relatedEntityId       String?         @map("related_entity_id")
+  balanceAfter          Int             @map("balance_after")
+  idempotencyKey        String?         @unique @map("idempotency_key")
+  createdBy             String?         @map("created_by")
+  createdAt             DateTime        @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId, createdAt])
+  @@index([relatedTransactionId])
+  @@map("wallet_ledger")
+}
+
+model Payment {
+  id                String         @id @default(uuid())
+  purpose           PaymentPurpose
+  providerReference String         @unique @map("provider_reference")
+  amount            Int
+  currency          String         @default("INR")
+  status            PaymentStatus  @default(PENDING)
+  metadata          Json?
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  @@map("payments")
+}
+
+model Withdrawal {
+  id           String           @id @default(uuid())
+  walletId     String           @map("wallet_id")
+  amount       Int
+  currency     String           @default("INR")
+  status       WithdrawalStatus @default(REQUESTED)
+  payoutMethod String?          @map("payout_method")
+  failureReason String?         @map("failure_reason")
+  requestedAt  DateTime         @default(now()) @map("requested_at")
+  paidAt       DateTime?        @map("paid_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@index([status])
+  @@map("withdrawals")
+}
+
+model Refund {
+  id         String   @id @default(uuid())
+  walletId   String   @map("wallet_id")
+  campaignId String?  @map("campaign_id")
+  amount     Int
+  currency   String   @default("INR")
+  reason     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@map("refunds")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Referrals
+// ─────────────────────────────────────────────────────────────
+
+model Referral {
+  id           String         @id @default(uuid())
+  referrerId   String         @map("referrer_id")
+  referredId   String         @unique @map("referred_id")
+  status       ReferralStatus @default(PENDING)
+  flaggedReason String?       @map("flagged_reason")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  expiresAt    DateTime?      @map("expires_at")
+
+  referrer User            @relation("Referrer", fields: [referrerId], references: [id])
+  referred User            @relation("Referred", fields: [referredId], references: [id])
+  reward   ReferralReward?
+
+  @@index([referrerId])
+  @@map("referrals")
+}
+
+model ReferralReward {
+  id         String   @id @default(uuid())
+  referralId String   @unique @map("referral_id")
+  amount     Int
+  currency   String   @default("INR")
+  issuedAt   DateTime? @map("issued_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  referral Referral @relation(fields: [referralId], references: [id])
+
+  @@map("referral_rewards")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Operations
+// ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  type      String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id             String  @id @default(uuid())
+  userId         String  @map("user_id")
+  type           String
+  inAppEnabled   Boolean @default(true) @map("in_app_enabled")
+  emailEnabled   Boolean @default(true) @map("email_enabled")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, type])
+  @@map("notification_preferences")
+}
+
+model SupportTicket {
+  id         String         @id @default(uuid())
+  userId     String         @map("user_id")
+  category   TicketCategory
+  subject    String
+  status     TicketStatus   @default(OPEN)
+  priority   String         @default("NORMAL")
+  assignedTo String?        @map("assigned_to")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+
+  user     User            @relation(fields: [userId], references: [id])
+  messages TicketMessage[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+model TicketMessage {
+  id         String   @id @default(uuid())
+  ticketId   String   @map("ticket_id")
+  authorId   String   @map("author_id")
+  authorType String   @map("author_type") // "user" | "admin"
+  body       String
+  attachments String[]
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id])
+
+  @@index([ticketId])
+  @@map("ticket_messages")
+}
+
+model Dispute {
+  id           String        @id @default(uuid())
+  type         DisputeType
+  openedById   String        @map("opened_by_id")
+  targetType   String        @map("target_type")
+  targetId     String        @map("target_id")
+  status       DisputeStatus @default(OPEN)
+  resolution   String?
+  resolvedBy   String?       @map("resolved_by")
+  resolvedAt   DateTime?     @map("resolved_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  openedBy User             @relation("DisputeOpenedBy", fields: [openedById], references: [id])
+  messages DisputeMessage[]
+
+  @@index([openedById])
+  @@index([targetType, targetId])
+  @@map("disputes")
+}
+
+model DisputeMessage {
+  id         String   @id @default(uuid())
+  disputeId  String   @map("dispute_id")
+  authorId   String   @map("author_id")
+  authorType String   @map("author_type")
+  body       String
+  attachments String[]
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  dispute Dispute @relation(fields: [disputeId], references: [id])
+
+  @@index([disputeId])
+  @@map("dispute_messages")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Admin / platform
+// ─────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String   @map("actor_id")
+  actorRole  UserRole @map("actor_role")
+  action     String
+  targetType String   @map("target_type")
+  targetId   String   @map("target_id")
+  before     Json?
+  after      Json?
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor User @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@map("system_settings")
+}
