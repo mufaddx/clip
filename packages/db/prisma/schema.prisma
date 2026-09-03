@@ -383,8 +383,10 @@ model Campaign {
   objective       CampaignObjective @default(VIEWS)
   description     String?
   status          CampaignStatus    @default(DRAFT)
-  creatorBudget    Int               @map("creator_budget") // minor units
+  creatorBudget    Int               @map("creator_budget") // minor units — the pool paid out to clippers
   platformFeeRate  Float             @map("platform_fee_rate") // locked at funding time
+  lockedAmount    Int               @default(0) @map("locked_amount") // mirrors the brand wallet's LOCKED bucket for this campaign
+  spentAmount     Int               @default(0) @map("spent_amount") // mirrors SPENT — sum of earnings posted from this campaign
   currency        String            @default("INR")
   maxParticipants Int?              @map("max_participants")
   rejectedReason  String?           @map("rejected_reason")

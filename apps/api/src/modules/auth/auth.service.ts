@@ -130,6 +130,56 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
   }
+
+  /**
+   * Issues a signed, time-limited reset token — see
+   * docs/users/AUTHENTICATION_FLOW.md "Password reset". Always resolves
+   * (never reveals whether the email exists); logs the reset link since no
+   * email provider is configured yet (docs/operations/NOTIFICATION_SYSTEM.md
+   * "Email" — real delivery is a later pass).
+   */
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return;
+
+    const token = await this.jwtService.signAsync({ sub: user.id, purpose: "password_reset" }, { expiresIn: "1h" });
+    console.log(`[email stub] password reset link for ${email}: /reset-password?token=${token}`);
+  }
+
+  /** Verifies the reset token, updates the password, and revokes every existing refresh token for the account. */
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    let payload: { sub: string; purpose: string };
+    try {
+      payload = await this.jwtService.verifyAsync(token);
+    } catch {
+      throw new UnauthorizedException({ code: "TOKEN_EXPIRED", message: "This reset link has expired or is invalid." });
+    }
+    if (payload.purpose !== "password_reset") {
+      throw new UnauthorizedException({ code: "INVALID_TOKEN", message: "This link can't be used to reset a password." });
+    }
+
+    const passwordHash = await argon2.hash(newPassword);
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: payload.sub }, data: { passwordHash } }),
+      prisma.refreshToken.updateMany({ where: { userId: payload.sub, revokedAt: null }, data: { revokedAt: new Date() } }),
+    ]);
+  }
+
+  /**
+   * Used by AdminService to provision an ADMIN/SUPPORT/FINANCE_ADMIN account
+   * — see docs/users/ADMIN_USER_FLOW.md "Provisioning". The invitee gets a
+   * set-password link (reusing the reset-password flow) rather than a
+   * temporary password.
+   */
+  async provisionAccountWithResetLink(email: string, role: SessionUser["role"]): Promise<void> {
+    const unusablePasswordHash = await argon2.hash(randomBytes(32).toString("hex"));
+    await prisma.user.upsert({
+      where: { email },
+      create: { email, passwordHash: unusablePasswordHash, role, status: "PENDING_VERIFICATION" },
+      update: {},
+    });
+    await this.requestPasswordReset(email);
+  }
 }
 
 function hashToken(token: string): string {

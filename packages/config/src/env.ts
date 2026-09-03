@@ -29,6 +29,11 @@ const envSchema = z.object({
   META_REDIRECT_URI: z.string().optional(),
   META_GRAPH_API_VERSION: z.string().default("v21.0"),
 
+  // AES-256-GCM key (32 raw bytes, base64-encoded) for encrypting
+  // instagram_tokens at rest — see docs/architecture/SECURITY_ARCHITECTURE.md
+  // "Token storage (Meta/Instagram)". Deliberately separate from AUTH_SECRET.
+  TOKEN_ENCRYPTION_KEY: z.string().optional(),
+
   PAYMENT_PROVIDER_KEY: z.string().optional(),
   PAYMENT_PROVIDER_SECRET: z.string().optional(),
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),

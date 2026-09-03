@@ -18,7 +18,7 @@ Shared code lives in [`packages/`](packages) (`ui`, `config`, `types`, `utilitie
 
 ## Status
 
-Phase 0 (documentation) is complete. The monorepo scaffold, database schema, and a working cross-subdomain authentication flow (signup → login → role-based redirect across all four subdomains) are implemented. Everything else — campaigns, Instagram integration, performance, wallet, referrals, background workers, admin panel — is designed in `/docs` but not yet built. See [`docs/README.md`](docs/README.md#current-implementation-status) for the live checklist.
+Phase 0 (documentation) is complete. The backend (`apps/api`) now has real, working business logic for auth, wallet/ledger, campaigns, reels, Instagram OAuth, performance scoring, referrals, notifications, support, disputes, and admin/brand team management — plus three real BullMQ background workers. The frontends still only have the auth flow and dashboard-home shells; the deeper pages (campaign wizard, wallet UI, admin queues, etc.) aren't built yet. None of this has been run — there's no Node.js/pnpm on this machine — so it's correct-by-construction, not test-verified. See [`docs/README.md`](docs/README.md#current-implementation-status) for the detailed, per-module checklist.
 
 ## Getting started
 

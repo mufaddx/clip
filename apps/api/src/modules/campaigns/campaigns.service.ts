@@ -1,0 +1,335 @@
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { prisma, type CampaignStatus } from "@clip/db";
+import type { UserRole } from "@clip/types";
+import { WalletService } from "../wallet/wallet.service";
+import { AuditService } from "../../common/audit/audit.service";
+import type { CreateCampaignDto } from "./dto/create-campaign.dto";
+import type { UpdateCampaignDto } from "./dto/update-campaign.dto";
+
+/**
+ * Campaign lifecycle + creator matching/acceptance. See
+ * docs/campaigns/CAMPAIGN_LIFECYCLE.md for the full state machine this
+ * enforces and docs/campaigns/CAMPAIGN_RULES.md for the invariants.
+ */
+@Injectable()
+export class CampaignsService {
+  constructor(
+    private readonly walletService: WalletService,
+    private readonly auditService: AuditService
+  ) {}
+
+  private async getBrandId(userId: string): Promise<string> {
+    const brand = await prisma.brandProfile.findUnique({ where: { userId } });
+    if (!brand) throw new ForbiddenException({ code: "NOT_A_BRAND", message: "This account has no brand profile." });
+    return brand.id;
+  }
+
+  private async getCreatorId(userId: string): Promise<string> {
+    const creator = await prisma.creatorProfile.findUnique({ where: { userId } });
+    if (!creator) throw new ForbiddenException({ code: "NOT_A_CLIPPER", message: "This account has no creator profile." });
+    return creator.id;
+  }
+
+  /** Object-level ownership check — a BRAND_OWNER role alone doesn't grant access to every campaign. See docs/api/API_AUTHORIZATION.md. */
+  private async getOwnedCampaign(brandUserId: string, campaignId: string) {
+    const brandId = await this.getBrandId(brandUserId);
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: { requirements: true, assets: true },
+    });
+    if (!campaign) throw new NotFoundException({ code: "CAMPAIGN_NOT_FOUND", message: "Campaign not found." });
+    if (campaign.brandId !== brandId) {
+      throw new ForbiddenException({ code: "FORBIDDEN", message: "You do not own this campaign." });
+    }
+    return campaign;
+  }
+
+  private assertStatus(current: CampaignStatus, allowed: CampaignStatus[]) {
+    if (!allowed.includes(current)) {
+      throw new BadRequestException({
+        code: "INVALID_CAMPAIGN_STATE",
+        message: `Campaign is ${current}; expected one of ${allowed.join(", ")}.`,
+      });
+    }
+  }
+
+  // ── Creation (Step 1/2/3/4 folded into one draft create — see
+  // docs/campaigns/CAMPAIGN_CREATION_FLOW.md) ──────────────────────────────
+
+  async createDraft(brandUserId: string, dto: CreateCampaignDto) {
+    const brandId = await this.getBrandId(brandUserId);
+
+    return prisma.campaign.create({
+      data: {
+        brandId,
+        name: dto.name,
+        type: dto.type,
+        description: dto.description,
+        objective: dto.objective,
+        creatorBudget: dto.creatorBudget,
+        maxParticipants: dto.maxParticipants,
+        platformFeeRate: 0, // locked in at funding time, not draft time — see CAMPAIGN_RULES.md
+        status: "DRAFT",
+        requirements: dto.requirements
+          ? {
+              create: {
+                minFollowers: dto.requirements.minFollowers,
+                minAccountAgeDays: dto.requirements.minAccountAgeDays,
+                minTrustScore: dto.requirements.minTrustScore,
+                contentRestrictions: dto.requirements.contentRestrictions ?? [],
+                categories: dto.requirements.categoryIds
+                  ? { connect: dto.requirements.categoryIds.map((id) => ({ id })) }
+                  : undefined,
+              },
+            }
+          : undefined,
+        assets: dto.assets
+          ? {
+              create: dto.assets.map((a) => ({
+                mediaUrl: a.mediaUrl,
+                caption: a.caption,
+                hashtags: a.hashtags ?? [],
+                requiredMentions: a.requiredMentions ?? [],
+                instructions: a.instructions,
+              })),
+            }
+          : undefined,
+      },
+      include: { requirements: true, assets: true },
+    });
+  }
+
+  async updateDraft(brandUserId: string, campaignId: string, dto: UpdateCampaignDto) {
+    const campaign = await this.getOwnedCampaign(brandUserId, campaignId);
+    // Objective/requirements lock once the first clipper accepts — see
+    // docs/campaigns/CAMPAIGN_RULES.md "Objective & rules immutability".
+    this.assertStatus(campaign.status, ["DRAFT"]);
+
+    return prisma.campaign.update({
+      where: { id: campaignId },
+      data: {
+        name: dto.name,
+        type: dto.type,
+        description: dto.description,
+        objective: dto.objective,
+        creatorBudget: dto.creatorBudget,
+        maxParticipants: dto.maxParticipants,
+      },
+      include: { requirements: true, assets: true },
+    });
+  }
+
+  async listForBrand(brandUserId: string, status?: CampaignStatus) {
+    const brandId = await this.getBrandId(brandUserId);
+    return prisma.campaign.findMany({
+      where: { brandId, ...(status ? { status } : {}) },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async getForBrand(brandUserId: string, campaignId: string) {
+    return this.getOwnedCampaign(brandUserId, campaignId);
+  }
+
+  // ── Lifecycle transitions — see docs/campaigns/CAMPAIGN_LIFECYCLE.md ─────
+
+  async submit(brandUserId: string, campaignId: string) {
+    const campaign = await this.getOwnedCampaign(brandUserId, campaignId);
+    this.assertStatus(campaign.status, ["DRAFT"]);
+
+    if (!campaign.requirements) {
+      throw new BadRequestException({ code: "MISSING_REQUIREMENTS", message: "Creator requirements must be set before submitting." });
+    }
+    if (campaign.assets.length === 0) {
+      throw new BadRequestException({ code: "MISSING_ASSETS", message: "At least one content asset is required before submitting." });
+    }
+
+    // SUBMITTED → PENDING_REVIEW is automatic per the docs (no separate user
+    // action); we collapse it into one write since there's no queue-pickup
+    // step to model yet.
+    return prisma.campaign.update({
+      where: { id: campaignId },
+      data: { status: "PENDING_REVIEW", submittedAt: new Date() },
+    });
+  }
+
+  async approve(adminUserId: string, adminRole: UserRole, campaignId: string) {
+    const campaign = await prisma.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+    this.assertStatus(campaign.status, ["PENDING_REVIEW"]);
+
+    const updated = await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { status: "APPROVED", approvedAt: new Date() },
+    });
+
+    await this.auditService.log({
+      actorId: adminUserId,
+      actorRole: adminRole,
+      action: "campaign.approve",
+      targetType: "campaign",
+      targetId: campaignId,
+      before: { status: campaign.status },
+      after: { status: "APPROVED" },
+    });
+
+    return updated;
+  }
+
+  async reject(adminUserId: string, adminRole: UserRole, campaignId: string, reason: string) {
+    const campaign = await prisma.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+    this.assertStatus(campaign.status, ["PENDING_REVIEW"]);
+
+    const updated = await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { status: "REJECTED", rejectedReason: reason },
+    });
+
+    await this.auditService.log({
+      actorId: adminUserId,
+      actorRole: adminRole,
+      action: "campaign.reject",
+      targetType: "campaign",
+      targetId: campaignId,
+      before: { status: campaign.status },
+      after: { status: "REJECTED", reason },
+    });
+
+    return updated;
+  }
+
+  /** APPROVED → FUNDED → LIVE. Platform fee rate is read and locked in now — see docs/campaigns/CAMPAIGN_RULES.md. */
+  async fund(brandUserId: string, campaignId: string) {
+    const campaign = await this.getOwnedCampaign(brandUserId, campaignId);
+    this.assertStatus(campaign.status, ["APPROVED"]);
+
+    const feeSetting = await prisma.systemSetting.findUnique({ where: { key: "platform_fee_rate" } });
+    const platformFeeRate = typeof feeSetting?.value === "number" ? feeSetting.value : 0.15;
+    const totalBudget = Math.round(campaign.creatorBudget * (1 + platformFeeRate));
+
+    await this.walletService.lockForCampaign(brandUserId, campaignId, totalBudget);
+
+    const now = new Date();
+    return prisma.campaign.update({
+      where: { id: campaignId },
+      data: {
+        status: "LIVE",
+        platformFeeRate,
+        lockedAmount: totalBudget,
+        fundedAt: now,
+        liveAt: now,
+      },
+    });
+  }
+
+  async pause(brandUserId: string, campaignId: string) {
+    const campaign = await this.getOwnedCampaign(brandUserId, campaignId);
+    this.assertStatus(campaign.status, ["LIVE"]);
+    return prisma.campaign.update({ where: { id: campaignId }, data: { status: "PAUSED" } });
+  }
+
+  async resume(brandUserId: string, campaignId: string) {
+    const campaign = await this.getOwnedCampaign(brandUserId, campaignId);
+    this.assertStatus(campaign.status, ["PAUSED"]);
+    return prisma.campaign.update({ where: { id: campaignId }, data: { status: "LIVE" } });
+  }
+
+  /** Releases unspent LOCKED budget to REFUNDABLE — see docs/finance/REFUND_SYSTEM.md. */
+  async cancel(brandUserId: string, campaignId: string) {
+    const campaign = await this.getOwnedCampaign(brandUserId, campaignId);
+    this.assertStatus(campaign.status, ["DRAFT", "SUBMITTED", "PENDING_REVIEW", "APPROVED", "FUNDED", "LIVE", "PAUSED"]);
+
+    const remainingLocked = campaign.lockedAmount - campaign.spentAmount;
+    if (remainingLocked > 0) {
+      await this.walletService.releaseLockToRefundable(brandUserId, campaignId, remainingLocked);
+    }
+
+    return prisma.campaign.update({
+      where: { id: campaignId },
+      data: { status: "CANCELLED", lockedAmount: campaign.spentAmount },
+    });
+  }
+
+  async complete(brandUserId: string, campaignId: string) {
+    const campaign = await this.getOwnedCampaign(brandUserId, campaignId);
+    this.assertStatus(campaign.status, ["LIVE", "PAUSED"]);
+
+    const remainingLocked = campaign.lockedAmount - campaign.spentAmount;
+    if (remainingLocked > 0) {
+      await this.walletService.releaseLockToRefundable(brandUserId, campaignId, remainingLocked);
+    }
+
+    return prisma.campaign.update({
+      where: { id: campaignId },
+      data: { status: "COMPLETED", completedAt: new Date(), lockedAmount: campaign.spentAmount },
+    });
+  }
+
+  // ── Creator matching + acceptance — see docs/campaigns/CREATOR_MATCHING.md ─
+
+  /** The hard eligibility gate — shared by both listing and accept() so a clipper never accepts what they couldn't see. */
+  private async eligibleCampaignsWhere(creatorId: string) {
+    const creator = await prisma.creatorProfile.findUniqueOrThrow({
+      where: { id: creatorId },
+      include: { categories: true },
+    });
+
+    if (creator.riskFlagged) return null; // excluded from all recommendations until cleared — see docs/performance/QUALIFIED_PERFORMANCE.md
+
+    return {
+      status: "LIVE" as const,
+      OR: [
+        { requirements: { is: { minTrustScore: null } } },
+        { requirements: { is: { minTrustScore: { lte: creator.trustScore } } } },
+      ],
+    };
+  }
+
+  async listAvailableForClipper(clipperUserId: string) {
+    const creatorId = await this.getCreatorId(clipperUserId);
+    const where = await this.eligibleCampaignsWhere(creatorId);
+    if (!where) return [];
+    return prisma.campaign.findMany({ where, include: { requirements: true }, orderBy: { liveAt: "desc" } });
+  }
+
+  async accept(clipperUserId: string, campaignId: string, instagramAccountId: string) {
+    const creatorId = await this.getCreatorId(clipperUserId);
+    const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId } });
+
+    if (creator.riskFlagged) {
+      throw new ForbiddenException({ code: "RISK_REVIEW", message: "Your account is under review and can't accept campaigns right now." });
+    }
+
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: { requirements: true, creators: true },
+    });
+    if (!campaign) throw new NotFoundException({ code: "CAMPAIGN_NOT_FOUND", message: "Campaign not found." });
+    this.assertStatus(campaign.status, ["LIVE"]);
+
+    if (campaign.requirements?.minTrustScore != null && creator.trustScore < campaign.requirements.minTrustScore) {
+      throw new ForbiddenException({ code: "NOT_ELIGIBLE", message: "You don't meet this campaign's minimum trust score." });
+    }
+
+    if (campaign.maxParticipants != null && campaign.creators.length >= campaign.maxParticipants) {
+      throw new BadRequestException({ code: "CAMPAIGN_FULL", message: "This campaign has reached its maximum participants." });
+    }
+
+    const account = await prisma.instagramAccount.findUnique({ where: { id: instagramAccountId } });
+    if (!account || account.creatorId !== creatorId) {
+      throw new ForbiddenException({ code: "INVALID_INSTAGRAM_ACCOUNT", message: "That Instagram account isn't connected to your profile." });
+    }
+
+    return prisma.campaignCreator.create({
+      data: { campaignId, creatorId, instagramAccountId, status: "ACCEPTED" },
+    });
+  }
+
+  async listMyAcceptances(clipperUserId: string) {
+    const creatorId = await this.getCreatorId(clipperUserId);
+    return prisma.campaignCreator.findMany({
+      where: { creatorId },
+      include: { campaign: true, reels: true },
+      orderBy: { acceptedAt: "desc" },
+    });
+  }
+}

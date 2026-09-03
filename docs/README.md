@@ -37,14 +37,17 @@ This section is updated as work lands — treat it as the single "what actually 
 - [x] Documentation structure (this Phase 0 pass)
 - [x] Monorepo scaffold (Turborepo + pnpm workspaces): `public-web`, `clipper-app`, `brand-app`, `admin-app`, `api`, shared `packages/*`
 - [x] Database schema (Prisma) for core tables
-- [x] Cross-subdomain authentication skeleton (issue/verify JWT, role redirect, shared cookie)
-- [ ] Campaign system implementation
-- [ ] Instagram/Meta integration implementation
-- [ ] Performance pipeline implementation
-- [ ] Wallet/ledger implementation
-- [ ] Referral system implementation
-- [ ] Background workers implementation
-- [ ] Admin panel implementation
-- [ ] Notifications/support/disputes implementation
+- [x] Cross-subdomain authentication skeleton (issue/verify JWT, role redirect, shared cookie), plus forgot/reset-password
+- [x] Wallet/ledger backend (`apps/api/src/modules/wallet`) — every mutation (deposit, campaign lock/release, earning post/settle/reverse, withdrawal, refund, referral reward) is a paired, transactional `wallet_ledger` write
+- [x] Campaign system backend (`apps/api/src/modules/campaigns`) — full lifecycle (draft → submit → approve/reject → fund → live → pause/resume → cancel/complete), creator matching + acceptance
+- [x] Reel submission + a simplified rule-based verification pass (`apps/api/src/modules/reels`) — real Graph API media resolution not yet wired in
+- [x] Instagram/Meta OAuth integration backend (`apps/api/src/modules/instagram`) — real Instagram API with Instagram Login flow, AES-256-GCM token encryption; untested end-to-end since no Meta app is configured yet
+- [x] Performance pipeline backend (`apps/api/src/modules/performance`) — metric snapshots, versioned rule configuration, a simplified qualified-performance scoring formula, and inline earnings posting
+- [x] Referral system backend (`apps/api/src/modules/referrals`) — attribution at signup, eligibility on onboarding completion, self-referral heuristic, per-user cap, expiration sweep
+- [x] Notifications/support/disputes backend (`apps/api/src/modules/{notifications,support,disputes}`) — ticket/dispute lifecycles, dispute-driven ledger reversal
+- [x] Admin backend (`apps/api/src/modules/admin`, `brands`) — user suspend/reinstate, admin-team provisioning, platform settings, brand team management; all admin mutations audit-logged
+- [x] Background workers — partial: Notification Worker, Instagram Sync Worker, Referral Reward expiry sweep are real BullMQ workers (`apps/api/src/workers`) sharing the API's service layer via a standalone Nest application context. Reel Detection, Reel Verification, Metrics Sync, Performance Calculation, Campaign Progress, and Earnings currently run **inline** on the request path (see `ReelsService`, `PerformanceService`) rather than as queued workers — decoupling them is the next pass.
+- [ ] Frontend pages beyond the dashboard shells — campaign wizard, wallet/withdrawals UI, Instagram connect UI, admin queues, etc. are still unbuilt; only the auth flow and dashboard-home shells are wired to real data shapes.
+- [ ] End-to-end verification — none of this has been run (no Node.js/pnpm on this machine yet), so it's correct-by-construction, not test-verified. Run `pnpm install && pnpm db:migrate` first — see `docs/development/ENVIRONMENT_SETUP.md`.
 
 Each unchecked item has a design already captured in its doc above; implementation follows in subsequent work sessions.

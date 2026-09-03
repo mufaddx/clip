@@ -6,6 +6,8 @@ import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "../../common/constant
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { SignupDto } from "./dto/signup.dto";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
+import { ResetPasswordDto } from "./dto/reset-password.dto";
 
 /**
  * /v1/auth — see docs/api/API_ENDPOINTS.md and docs/users/AUTHENTICATION_FLOW.md.
@@ -50,6 +52,22 @@ export class AuthController {
     await this.authService.logout(req.cookies?.[REFRESH_TOKEN_COOKIE]);
     res.clearCookie(ACCESS_TOKEN_COOKIE);
     res.clearCookie(REFRESH_TOKEN_COOKIE);
+    return { success: true };
+  }
+
+  @Public()
+  @Post("forgot-password")
+  @HttpCode(200)
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.authService.requestPasswordReset(dto.email);
+    return { success: true }; // always success — never reveals whether the email exists
+  }
+
+  @Public()
+  @Post("reset-password")
+  @HttpCode(200)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto.token, dto.newPassword);
     return { success: true };
   }
 }
