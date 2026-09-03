@@ -1,4 +1,7 @@
 import "reflect-metadata";
+import { initSentry } from "./common/sentry";
+initSentry(); // must run before anything else is imported, per Sentry's Node setup
+
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import cookieParser from "cookie-parser";

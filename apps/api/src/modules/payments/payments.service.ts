@@ -1,69 +1,118 @@
-import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
+import Razorpay from "razorpay";
 import { prisma } from "@clip/db";
 import { getEnv } from "@clip/config";
 import { WalletService } from "../wallet/wallet.service";
 
 /**
- * Payment provider adapter — see docs/finance/PAYMENT_SYSTEM.md "Provider
- * abstraction". This is the ONLY module allowed to call a payment
- * provider's API; nothing else in the codebase does.
- *
- * No specific provider (Razorpay/Stripe/etc.) has been chosen yet, so the
- * provider-specific request shapes below are intentionally not implemented
- * — calling them throws a clear 503 rather than pretending to work. What
- * IS real and complete: the `payments` bookkeeping, and the webhook
- * signature verification + event dispatch in PaymentsWebhookController,
- * since that shape is provider-agnostic (see docs/api/WEBHOOKS.md).
+ * Razorpay adapter — see docs/finance/PAYMENT_SYSTEM.md "Provider
+ * abstraction". This is the ONLY module allowed to call Razorpay's API;
+ * nothing else in the codebase does.
  */
 @Injectable()
 export class PaymentsService {
   constructor(private readonly walletService: WalletService) {}
 
-  private requireProviderConfig() {
+  private getEnvOrThrow() {
     const env = getEnv();
     if (!env.PAYMENT_PROVIDER_KEY || !env.PAYMENT_PROVIDER_SECRET) {
       throw new ServiceUnavailableException({
         code: "PAYMENTS_NOT_CONFIGURED",
-        message: "No payment provider is configured yet (PAYMENT_PROVIDER_KEY/PAYMENT_PROVIDER_SECRET).",
+        message: "Razorpay isn't configured yet (PAYMENT_PROVIDER_KEY/PAYMENT_PROVIDER_SECRET).",
       });
     }
     return env;
   }
 
-  /**
-   * Creates a `payments` row and would call the provider's create-intent
-   * API — see docs/finance/PAYMENT_SYSTEM.md "Deposit flow". The actual
-   * provider call is a TODO: fill in the real endpoint/request shape once
-   * a provider is chosen.
-   */
-  async createDepositIntent(userId: string, amountMinor: number) {
-    this.requireProviderConfig();
-    const wallet = await this.walletService.getWalletByUserId(userId);
-
-    const providerReference = `pending-${crypto.randomUUID()}`;
-    const payment = await prisma.payment.create({
-      data: { purpose: "DEPOSIT", providerReference, amount: amountMinor, currency: wallet.currency, status: "PENDING" },
-    });
-
-    // TODO(provider): call the chosen provider's "create payment intent"
-    // API here and return whatever client-side token/secret it expects the
-    // frontend to complete the charge with.
-    throw new ServiceUnavailableException({
-      code: "PAYMENTS_NOT_CONFIGURED",
-      message: `Payment row ${payment.id} created, but no provider integration exists yet to actually collect payment.`,
-    });
+  private getClient(): Razorpay {
+    const env = this.getEnvOrThrow();
+    return new Razorpay({ key_id: env.PAYMENT_PROVIDER_KEY!, key_secret: env.PAYMENT_PROVIDER_SECRET! });
   }
 
-  /** See docs/finance/WITHDRAWAL_SYSTEM.md — called after WalletService.requestWithdrawal creates the PROCESSING debit. */
-  async createPayout(withdrawalId: string) {
-    this.requireProviderConfig();
-    // TODO(provider): call the chosen provider's payout/transfer API,
-    // storing the reference on a `payments` row (purpose: PAYOUT). On the
-    // provider's later webhook confirmation, PaymentsWebhookController
-    // calls walletService.completeWithdrawal/failWithdrawal.
-    throw new ServiceUnavailableException({
-      code: "PAYMENTS_NOT_CONFIGURED",
-      message: `No provider integration exists yet to actually pay out withdrawal ${withdrawalId}.`,
+  /**
+   * Creates a Razorpay Order + a `payments` row — see
+   * docs/finance/PAYMENT_SYSTEM.md "Deposit flow". The frontend opens
+   * Razorpay Checkout with the returned `orderId` + `keyId`; the deposit is
+   * only recognized as available balance once the `payment.captured`
+   * webhook arrives (see PaymentsController), never on the client-side
+   * checkout "success" callback alone.
+   */
+  async createDepositIntent(userId: string, amountMinor: number) {
+    const env = this.getEnvOrThrow();
+    const client = this.getClient();
+    const wallet = await this.walletService.getWalletByUserId(userId);
+
+    const order = await client.orders.create({
+      amount: amountMinor, // Razorpay also expects the smallest currency unit (paise for INR) — matches our minor-unit convention
+      currency: wallet.currency,
+      receipt: `deposit_${userId}_${Date.now()}`,
+      notes: { userId },
     });
+
+    await prisma.payment.create({
+      data: {
+        purpose: "DEPOSIT",
+        providerReference: order.id,
+        amount: amountMinor,
+        currency: wallet.currency,
+        status: "PENDING",
+        metadata: order as object,
+      },
+    });
+
+    return { orderId: order.id, amount: amountMinor, currency: wallet.currency, keyId: env.PAYMENT_PROVIDER_KEY };
+  }
+
+  /**
+   * RazorpayX Payout — see docs/finance/WITHDRAWAL_SYSTEM.md. Assumes
+   * `withdrawal.payoutMethod` holds a Razorpay `fund_account_id` (created
+   * via a separate bank-account-linking flow that doesn't exist yet — see
+   * docs/README.md implementation status). `RAZORPAY_ACCOUNT_NUMBER` is
+   * the platform's own RazorpayX virtual account the payout draws from.
+   */
+  async createPayout(withdrawalId: string) {
+    const env = this.getEnvOrThrow();
+    if (!env.RAZORPAY_ACCOUNT_NUMBER) {
+      throw new ServiceUnavailableException({
+        code: "PAYOUTS_NOT_CONFIGURED",
+        message: "RAZORPAY_ACCOUNT_NUMBER isn't set — RazorpayX payouts need the platform's virtual account number.",
+      });
+    }
+
+    const withdrawal = await prisma.withdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
+    if (!withdrawal.payoutMethod) {
+      throw new BadRequestException({
+        code: "NO_PAYOUT_METHOD",
+        message: "This withdrawal has no linked Razorpay fund_account_id to pay out to.",
+      });
+    }
+
+    const client = this.getClient();
+    // The `payouts` resource isn't in Razorpay's typed SDK surface (RazorpayX
+    // is a separate product with its own API base) — calling it through the
+    // same client's generic request path.
+    const payout = await (client as unknown as { payouts: { create(data: object): Promise<{ id: string; status: string }> } }).payouts.create({
+      account_number: env.RAZORPAY_ACCOUNT_NUMBER,
+      fund_account_id: withdrawal.payoutMethod,
+      amount: withdrawal.amount,
+      currency: withdrawal.currency,
+      mode: "IMPS",
+      purpose: "payout",
+      queue_if_low_balance: true,
+      reference_id: withdrawal.id,
+    });
+
+    await prisma.payment.create({
+      data: {
+        purpose: "PAYOUT",
+        providerReference: payout.id,
+        amount: withdrawal.amount,
+        currency: withdrawal.currency,
+        status: "PENDING",
+        metadata: { withdrawalId, razorpayStatus: payout.status },
+      },
+    });
+
+    return payout;
   }
 }

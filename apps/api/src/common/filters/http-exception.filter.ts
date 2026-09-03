@@ -1,5 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from "@nestjs/common";
 import type { Response } from "express";
+import { Sentry } from "../sentry";
 
 /**
  * Maps every thrown exception to the consistent error envelope described in
@@ -15,6 +16,13 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
 
     const status = exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
+
+    // Only genuinely unexpected errors (5xx, non-HttpException) go to
+    // Sentry — a validated 400/403/404 is expected application behavior,
+    // not an incident. Sentry.captureException no-ops if SENTRY_DSN isn't set.
+    if (status >= 500) {
+      Sentry.captureException(exception);
+    }
 
     const raw = exception instanceof HttpException ? exception.getResponse() : null;
 

@@ -38,12 +38,31 @@ const envSchema = z.object({
   // "Token storage (Meta/Instagram)". Deliberately separate from AUTH_SECRET.
   TOKEN_ENCRYPTION_KEY: z.string().optional(),
 
+  // Razorpay — PAYMENT_PROVIDER_KEY/SECRET are the Key ID/Key Secret from
+  // the Razorpay dashboard; PAYMENT_WEBHOOK_SECRET is set when configuring
+  // the webhook endpoint there. RAZORPAY_ACCOUNT_NUMBER is the platform's
+  // own RazorpayX virtual account, needed only for creator payouts — see
+  // docs/finance/WITHDRAWAL_SYSTEM.md and PaymentsService.
   PAYMENT_PROVIDER_KEY: z.string().optional(),
   PAYMENT_PROVIDER_SECRET: z.string().optional(),
   PAYMENT_WEBHOOK_SECRET: z.string().optional(),
+  RAZORPAY_ACCOUNT_NUMBER: z.string().optional(),
+  // Not consumed by any code yet — recorded for when a feature actually needs it.
+  RAZORPAY_MERCHANT_ID: z.string().optional(),
 
+  // Resend — see docs/operations/NOTIFICATION_SYSTEM.md "Email".
   EMAIL_FROM: z.string().optional(),
   EMAIL_PROVIDER_API_KEY: z.string().optional(),
+
+  // Sentry — see docs/architecture/SECURITY_ARCHITECTURE.md and the
+  // per-app sentry config files. Optional: apps run fine without it.
+  SENTRY_DSN: z.string().optional(),
+  // Browser-bundled twin of SENTRY_DSN for the four Next.js apps' client
+  // config — NEXT_PUBLIC_ prefixed since it ships to the browser (a DSN is
+  // safe to expose; it's write-only for error reports, not a secret).
+  NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
+  SENTRY_ORG: z.string().optional(),
+  SENTRY_PROJECT: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

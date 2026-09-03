@@ -1,4 +1,7 @@
 import "reflect-metadata";
+import { initSentry, Sentry } from "./common/sentry";
+initSentry();
+
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { InstagramService } from "./modules/instagram/instagram.service";
@@ -44,6 +47,15 @@ async function bootstrapWorkers() {
     startMetricsSyncWorker(instagramService, performanceService),
     startEarningsWorker(walletService),
   ];
+
+  // A job that exhausts its retries (see docs/architecture/BACKGROUND_JOBS.md
+  // "Dead letter handling") is exactly the kind of thing Sentry should know
+  // about — no-ops if SENTRY_DSN isn't set.
+  for (const w of workers) {
+    w.on("failed", (job, err) => {
+      Sentry.captureException(err, { tags: { queue: w.name, jobId: job?.id } });
+    });
+  }
 
   // Repeatable jobs — see docs/architecture/BACKGROUND_JOBS.md "Scheduling".
   await referralRewardsQueue.add("expire-stale-referrals", {}, { repeat: { every: 24 * 60 * 60 * 1000 } }); // daily
