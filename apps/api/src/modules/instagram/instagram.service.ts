@@ -159,6 +159,63 @@ export class InstagramService {
     ]);
   }
 
+  private async getDecryptedToken(instagramAccountId: string, env: ReturnType<typeof getEnv>): Promise<string> {
+    const token = await prisma.instagramToken.findUnique({ where: { instagramAccountId } });
+    if (!token) throw new NotFoundException({ code: "NO_TOKEN", message: "This account has no stored token." });
+    return decryptToken(token.encryptedAccessToken, env.TOKEN_ENCRYPTION_KEY!);
+  }
+
+  /**
+   * Lists recent media on a connected account — feeds the Reel Detection
+   * Worker's "Path A" auto-discovery (docs/campaigns/REEL_SUBMISSION.md).
+   */
+  async listRecentMedia(instagramAccountId: string, limit = 25) {
+    const env = this.requireMetaConfig();
+    const account = await prisma.instagramAccount.findUniqueOrThrow({ where: { id: instagramAccountId } });
+    const accessToken = await this.getDecryptedToken(instagramAccountId, env);
+
+    const url = new URL(`https://graph.instagram.com/${env.META_GRAPH_API_VERSION}/${account.platformUserId}/media`);
+    url.searchParams.set("fields", "id,permalink,timestamp,media_type,caption");
+    url.searchParams.set("limit", String(limit));
+    url.searchParams.set("access_token", accessToken);
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new BadRequestException({ code: "INSTAGRAM_MEDIA_FETCH_FAILED", message: "Failed to list recent media." });
+    }
+    const body = (await res.json()) as { data: Array<{ id: string; permalink: string; timestamp: string; media_type: string; caption?: string }> };
+    return body.data;
+  }
+
+  /** Pulls current insights for one media item — feeds the Metrics Sync Worker. See docs/performance/METRICS_ARCHITECTURE.md. */
+  async getMediaInsights(instagramAccountId: string, mediaId: string) {
+    const env = this.requireMetaConfig();
+    const accessToken = await this.getDecryptedToken(instagramAccountId, env);
+
+    const url = new URL(`https://graph.instagram.com/${env.META_GRAPH_API_VERSION}/${mediaId}/insights`);
+    url.searchParams.set("metric", "reach,likes,comments,shares,saved,plays");
+    url.searchParams.set("access_token", accessToken);
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      // Not every account type/permission exposes every metric — a failed
+      // insights call is recorded as "unavailable", not fabricated. See
+      // docs/performance/METRICS_ARCHITECTURE.md.
+      return null;
+    }
+    const body = (await res.json()) as { data: Array<{ name: string; values: Array<{ value: number }> }> };
+    const byName = (name: string) => body.data.find((m) => m.name === name)?.values[0]?.value;
+
+    return {
+      views: byName("plays"),
+      reach: byName("reach"),
+      likes: byName("likes"),
+      comments: byName("comments"),
+      shares: byName("shares"),
+      saves: byName("saved"),
+    };
+  }
+
   /** Deletes the token immediately on disconnect — see docs/database/DATA_RETENTION.md. */
   async disconnect(creatorUserId: string, accountId: string) {
     const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { userId: creatorUserId } });

@@ -17,7 +17,7 @@ export class ReelsController {
   }
 
   @Get(":id")
-  async get(@Param("id") id: string) {
-    return this.reelsService.getReel(id);
+  async get(@CurrentUser() user: SessionUser, @Param("id") id: string) {
+    return this.reelsService.getReel(user.id, user.role, id);
   }
 }

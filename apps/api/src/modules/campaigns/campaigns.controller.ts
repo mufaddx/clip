@@ -3,6 +3,7 @@ import type { SessionUser } from "@clip/types";
 import type { CampaignStatus } from "@clip/db";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
+import { RequirePermission } from "../../common/decorators/require-permission.decorator";
 import { CampaignsService } from "./campaigns.service";
 import { CreateCampaignDto } from "./dto/create-campaign.dto";
 import { UpdateCampaignDto } from "./dto/update-campaign.dto";
@@ -35,6 +36,7 @@ export class CampaignsController {
   // ── Brand side ────────────────────────────────────────────────────────
 
   @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
+  @RequirePermission("CAMPAIGNS_CREATE")
   @Post()
   async create(@CurrentUser() user: SessionUser, @Body() dto: CreateCampaignDto) {
     return this.campaignsService.createDraft(user.id, dto);
@@ -53,6 +55,7 @@ export class CampaignsController {
   }
 
   @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
+  @RequirePermission("CAMPAIGNS_EDIT")
   @Patch(":id")
   async update(@CurrentUser() user: SessionUser, @Param("id") id: string, @Body() dto: UpdateCampaignDto) {
     return this.campaignsService.updateDraft(user.id, id, dto);
@@ -64,9 +67,11 @@ export class CampaignsController {
     return this.campaignsService.submit(user.id, id);
   }
 
-  // Funding moves real money — only the owner (or a delegate with
-  // campaigns.approve_budget, enforced in a later pass) can call this.
-  @Roles("BRAND_OWNER")
+  // Funding moves real money — the owner always can; a team member needs
+  // the CAMPAIGNS_APPROVE_BUDGET permission (PermissionsGuard skips owners
+  // entirely) — see docs/users/TEAM_MEMBER_FLOW.md.
+  @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
+  @RequirePermission("CAMPAIGNS_APPROVE_BUDGET")
   @Post(":id/fund")
   async fund(@CurrentUser() user: SessionUser, @Param("id") id: string) {
     return this.campaignsService.fund(user.id, id);

@@ -1,0 +1,37 @@
+# Local Postgres + Redis for development — see
+# docs/development/ENVIRONMENT_SETUP.md. Not used in Staging/Production
+# (those use managed instances, per docs/deployment/DEPLOYMENT_ARCHITECTURE.md).
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clip
+      POSTGRES_PASSWORD: clip
+      POSTGRES_DB: clip_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - clip_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clip"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - clip_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  clip_postgres_data:
+  clip_redis_data:

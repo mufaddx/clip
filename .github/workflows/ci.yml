@@ -1,0 +1,84 @@
+name: CI
+
+# See docs/deployment/CI_CD.md "Pipeline stages". Runs on every PR and on
+# pushes to main; the deploy stages described in that doc happen in the
+# hosting provider's own pipeline, not here — this workflow is the
+# test/build gate only.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: clip
+          POSTGRES_PASSWORD: clip
+          POSTGRES_DB: clip_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U clip"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://clip:clip@localhost:5432/clip_test
+      REDIS_URL: redis://localhost:6379
+      AUTH_SECRET: ci-test-secret-not-for-production-use-only
+      AUTH_COOKIE_DOMAIN: .localhost
+      NODE_ENV: test
+      PUBLIC_APP_URL: http://localhost:3000
+      CLIPPER_APP_URL: http://localhost:3001
+      BRAND_APP_URL: http://localhost:3002
+      ADMIN_APP_URL: http://localhost:3003
+      API_URL: http://localhost:4000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.11"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # Verifies a fresh migration history applies cleanly before it ever
+      # reaches Staging — see docs/database/MIGRATION_STRATEGY.md.
+      - name: Apply migrations
+        run: pnpm db:migrate:deploy
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

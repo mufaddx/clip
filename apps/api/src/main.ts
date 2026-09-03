@@ -13,7 +13,11 @@ import { getEnv } from "@clip/config";
  */
 async function bootstrap() {
   const env = getEnv();
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true preserves the unparsed request body alongside the parsed
+  // one — required to verify webhook HMAC signatures (Meta, payment
+  // provider), which must be computed over the exact bytes received, not
+  // a re-serialized JSON object. See docs/api/WEBHOOKS.md.
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.use(helmet());
   app.use(cookieParser());

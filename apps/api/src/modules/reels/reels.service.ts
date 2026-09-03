@@ -1,16 +1,11 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { prisma } from "@clip/db";
+import { ADMIN_ROLES, type UserRole } from "@clip/types";
 
 /**
- * Reel submission (manual-URL path) + rule verification. See
- * docs/campaigns/REEL_SUBMISSION.md "Path B" and
- * docs/campaigns/REEL_VERIFICATION.md.
- *
- * The automatic-detection path (docs "Path A") and real Graph API media
- * resolution belong to the isolated `instagram` module's Reel Detection
- * Worker (see docs/architecture/META_INSTAGRAM_INTEGRATION.md) — not yet
- * implemented, so `resolvePlatformMediaId` below is a deterministic stand-in
- * derived from the URL rather than a real Graph API lookup.
+ * Reel submission (both docs/campaigns/REEL_SUBMISSION.md paths — "Path A"
+ * automatic detection via the Reel Detection Worker, and "Path B" manual
+ * URL submission) + rule verification (docs/campaigns/REEL_VERIFICATION.md).
  */
 @Injectable()
 export class ReelsService {
@@ -29,7 +24,29 @@ export class ReelsService {
 
   async submit(clipperUserId: string, campaignCreatorId: string, url: string) {
     const acceptance = await this.getOwnedAcceptance(clipperUserId, campaignCreatorId);
+    return this.createAndVerify(acceptance, resolvePlatformMediaId(url), url, new Date());
+  }
 
+  /**
+   * Path A — called by the Reel Detection Worker for media it finds on a
+   * connected account, keyed by the real Graph API media id rather than a
+   * URL-derived stand-in. See docs/architecture/BACKGROUND_JOBS.md
+   * "Reel Detection Worker".
+   */
+  async detectFromMedia(campaignCreatorId: string, platformMediaId: string, url: string, publishedAt: Date) {
+    const acceptance = await prisma.campaignCreator.findUniqueOrThrow({
+      where: { id: campaignCreatorId },
+      include: { campaign: { include: { requirements: true, assets: true } } },
+    });
+    return this.createAndVerify(acceptance, platformMediaId, url, publishedAt);
+  }
+
+  private async createAndVerify(
+    acceptance: Awaited<ReturnType<ReelsService["getOwnedAcceptance"]>>,
+    platformMediaId: string,
+    url: string,
+    publishedAt: Date
+  ) {
     if (!["ACCEPTED", "SUBMITTED"].includes(acceptance.status)) {
       throw new BadRequestException({
         code: "ACCEPTANCE_NOT_ACTIVE",
@@ -37,12 +54,10 @@ export class ReelsService {
       });
     }
 
-    const platformMediaId = resolvePlatformMediaId(url);
-
     let reel;
     try {
       reel = await prisma.campaignReel.create({
-        data: { campaignCreatorId, platformMediaId, url, publishedAt: new Date() },
+        data: { campaignCreatorId: acceptance.id, platformMediaId, url, publishedAt },
       });
     } catch {
       // Unique constraint on platformMediaId — see docs/campaigns/REEL_SUBMISSION.md
@@ -50,7 +65,7 @@ export class ReelsService {
       throw new ConflictException({ code: "REEL_ALREADY_SUBMITTED", message: "This reel has already been submitted." });
     }
 
-    await prisma.campaignCreator.update({ where: { id: campaignCreatorId }, data: { status: "SUBMITTED" } });
+    await prisma.campaignCreator.update({ where: { id: acceptance.id }, data: { status: "SUBMITTED" } });
 
     const outcome = await this.verify(reel.id, acceptance);
     return { ...reel, verification: outcome };
@@ -101,12 +116,29 @@ export class ReelsService {
     return { status, reason };
   }
 
-  async getReel(reelId: string) {
+  /**
+   * Object-level scoping — a reel is visible to the clipper who submitted
+   * it, the brand who owns its campaign, or platform staff. See
+   * docs/api/API_AUTHORIZATION.md "Object-level authorization".
+   */
+  async getReel(actorId: string, actorRole: UserRole, reelId: string) {
     const reel = await prisma.campaignReel.findUnique({
       where: { id: reelId },
-      include: { verifications: true, metrics: true },
+      include: {
+        verifications: true,
+        metrics: true,
+        campaignCreator: { include: { campaign: { include: { brand: true } }, creator: true } },
+      },
     });
     if (!reel) throw new NotFoundException({ code: "REEL_NOT_FOUND", message: "Reel not found." });
+
+    const isStaff = ADMIN_ROLES.includes(actorRole);
+    const isOwningClipper = reel.campaignCreator.creator.userId === actorId;
+    const isOwningBrand = reel.campaignCreator.campaign.brand.userId === actorId;
+    if (!isStaff && !isOwningClipper && !isOwningBrand) {
+      throw new ForbiddenException({ code: "FORBIDDEN", message: "You don't have access to this reel." });
+    }
+
     return reel;
   }
 }

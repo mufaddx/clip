@@ -101,6 +101,37 @@ export class AdminService {
     return { success: true };
   }
 
+  // ── Audit logs / security events — see docs/admin/AUDIT_LOGS.md ─────────
+
+  async listAuditLogs(filters: { actorId?: string; targetType?: string; action?: string }, page = 1, pageSize = 50) {
+    const where = {
+      ...(filters.actorId ? { actorId: filters.actorId } : {}),
+      ...(filters.targetType ? { targetType: filters.targetType } : {}),
+      ...(filters.action ? { action: { contains: filters.action } } : {}),
+    };
+    const [data, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.auditLog.count({ where }),
+    ]);
+    return { data, meta: { page, pageSize, total } };
+  }
+
+  /** "Security events" is the subset of audit actions that touch auth/account security — see docs/admin/AUDIT_LOGS.md. */
+  async listSecurityEvents(page = 1, pageSize = 50) {
+    const securityActions = ["user.suspend", "user.reinstate", "admin_team.invite", "settings.update"];
+    const where = { action: { in: securityActions } };
+    const [data, total] = await Promise.all([
+      prisma.auditLog.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize }),
+      prisma.auditLog.count({ where }),
+    ]);
+    return { data, meta: { page, pageSize, total } };
+  }
+
   // ── Settings — see docs/admin/ADMIN_PANEL.md "Settings" ─────────────────
 
   async getSetting(key: string) {

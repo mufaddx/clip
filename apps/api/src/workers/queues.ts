@@ -3,13 +3,18 @@ import { createRedisConnection } from "./connection";
 
 /**
  * Queue name registry — see docs/architecture/BACKGROUND_JOBS.md "Worker
- * registry" for what each queue is for. Only the queues with a real worker
- * implemented so far are instantiated here; the rest (reel-detection,
- * reel-verification, campaign-progress) are documented but not yet built —
- * see docs/README.md implementation status.
+ * registry" for what each queue is for. Reel Verification and Campaign
+ * Progress are NOT queues here: verification is a fast, local, synchronous
+ * check (folded into ReelsService) with no external call to decouple, and
+ * Campaign Progress rollups are computed live by AnalyticsService rather
+ * than cached — see docs/architecture/SCALABILITY_ARCHITECTURE.md (adding a
+ * cache is "the first thing to revisit" once this stops being fast enough).
  */
 export const QUEUE_NAMES = {
   instagramSync: "instagram-sync",
+  reelDetection: "reel-detection",
+  metricsSync: "metrics-sync",
+  earnings: "earnings",
   notifications: "notifications",
   referralRewards: "referral-rewards",
 } as const;
@@ -17,6 +22,9 @@ export const QUEUE_NAMES = {
 const connection = createRedisConnection();
 
 export const instagramSyncQueue = new Queue(QUEUE_NAMES.instagramSync, { connection });
+export const reelDetectionQueue = new Queue(QUEUE_NAMES.reelDetection, { connection });
+export const metricsSyncQueue = new Queue(QUEUE_NAMES.metricsSync, { connection });
+export const earningsQueue = new Queue(QUEUE_NAMES.earnings, { connection });
 export const notificationsQueue = new Queue(QUEUE_NAMES.notifications, { connection });
 export const referralRewardsQueue = new Queue(QUEUE_NAMES.referralRewards, { connection });
 

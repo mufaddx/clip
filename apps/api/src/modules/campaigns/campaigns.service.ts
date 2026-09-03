@@ -18,10 +18,30 @@ export class CampaignsService {
     private readonly auditService: AuditService
   ) {}
 
+  /**
+   * Resolves the brand a user acts on behalf of — either they own it
+   * (BrandProfile.userId) or they're an active team member of it. See
+   * docs/users/TEAM_MEMBER_FLOW.md.
+   */
   private async getBrandId(userId: string): Promise<string> {
     const brand = await prisma.brandProfile.findUnique({ where: { userId } });
-    if (!brand) throw new ForbiddenException({ code: "NOT_A_BRAND", message: "This account has no brand profile." });
-    return brand.id;
+    if (brand) return brand.id;
+
+    const membership = await prisma.teamMember.findFirst({ where: { userId, removedAt: null } });
+    if (membership) return membership.brandId;
+
+    throw new ForbiddenException({ code: "NOT_A_BRAND", message: "This account has no brand access." });
+  }
+
+  /**
+   * The wallet always belongs to the owner (BrandProfile.userId) — team
+   * members never get their own wallet — so any wallet-touching action
+   * (fund/cancel/complete) must resolve back to the owner's user id
+   * regardless of which brand-side user triggered it.
+   */
+  private async getBrandOwnerUserId(brandId: string): Promise<string> {
+    const brand = await prisma.brandProfile.findUniqueOrThrow({ where: { id: brandId } });
+    return brand.userId;
   }
 
   private async getCreatorId(userId: string): Promise<string> {
@@ -206,7 +226,8 @@ export class CampaignsService {
     const platformFeeRate = typeof feeSetting?.value === "number" ? feeSetting.value : 0.15;
     const totalBudget = Math.round(campaign.creatorBudget * (1 + platformFeeRate));
 
-    await this.walletService.lockForCampaign(brandUserId, campaignId, totalBudget);
+    const ownerUserId = await this.getBrandOwnerUserId(campaign.brandId);
+    await this.walletService.lockForCampaign(ownerUserId, campaignId, totalBudget);
 
     const now = new Date();
     return prisma.campaign.update({
@@ -240,7 +261,8 @@ export class CampaignsService {
 
     const remainingLocked = campaign.lockedAmount - campaign.spentAmount;
     if (remainingLocked > 0) {
-      await this.walletService.releaseLockToRefundable(brandUserId, campaignId, remainingLocked);
+      const ownerUserId = await this.getBrandOwnerUserId(campaign.brandId);
+      await this.walletService.releaseLockToRefundable(ownerUserId, campaignId, remainingLocked);
     }
 
     return prisma.campaign.update({
@@ -255,7 +277,8 @@ export class CampaignsService {
 
     const remainingLocked = campaign.lockedAmount - campaign.spentAmount;
     if (remainingLocked > 0) {
-      await this.walletService.releaseLockToRefundable(brandUserId, campaignId, remainingLocked);
+      const ownerUserId = await this.getBrandOwnerUserId(campaign.brandId);
+      await this.walletService.releaseLockToRefundable(ownerUserId, campaignId, remainingLocked);
     }
 
     return prisma.campaign.update({

@@ -34,6 +34,23 @@ export class AdminController {
     return this.adminService.inviteAdmin(user.id, dto.role, dto.email);
   }
 
+  @Roles("SUPER_ADMIN", "ADMIN")
+  @Get("audit-logs")
+  async listAuditLogs(
+    @Query("actorId") actorId?: string,
+    @Query("targetType") targetType?: string,
+    @Query("action") action?: string,
+    @Query("page") page = "1"
+  ) {
+    return this.adminService.listAuditLogs({ actorId, targetType, action }, Number(page));
+  }
+
+  @Roles("SUPER_ADMIN", "ADMIN")
+  @Get("security-events")
+  async listSecurityEvents(@Query("page") page = "1") {
+    return this.adminService.listSecurityEvents(Number(page));
+  }
+
   @Roles("SUPER_ADMIN")
   @Get("settings/:key")
   async getSetting(@Param("key") key: string) {

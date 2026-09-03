@@ -68,6 +68,12 @@ async function main() {
   });
 
   await prisma.systemSetting.upsert({
+    where: { key: "earnings_settlement_window_days" },
+    update: {},
+    create: { key: "earnings_settlement_window_days", value: 7 },
+  });
+
+  await prisma.systemSetting.upsert({
     where: { key: "referral_rules" },
     update: {},
     create: {

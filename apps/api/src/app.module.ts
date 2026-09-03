@@ -7,6 +7,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { UsersModule } from "./modules/users/users.module";
 import { BrandsModule } from "./modules/brands/brands.module";
 import { WalletModule } from "./modules/wallet/wallet.module";
+import { PaymentsModule } from "./modules/payments/payments.module";
 import { CampaignsModule } from "./modules/campaigns/campaigns.module";
 import { ReelsModule } from "./modules/reels/reels.module";
 import { InstagramModule } from "./modules/instagram/instagram.module";
@@ -16,8 +17,11 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { SupportModule } from "./modules/support/support.module";
 import { DisputesModule } from "./modules/disputes/disputes.module";
 import { AdminModule } from "./modules/admin/admin.module";
+import { AnalyticsModule } from "./modules/analytics/analytics.module";
+import { ModerationModule } from "./modules/moderation/moderation.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { RolesGuard } from "./common/guards/roles.guard";
+import { PermissionsGuard } from "./common/guards/permissions.guard";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 
 @Module({
@@ -35,6 +39,7 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
     UsersModule,
     BrandsModule,
     WalletModule,
+    PaymentsModule,
     CampaignsModule,
     ReelsModule,
     InstagramModule,
@@ -44,11 +49,14 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
     SupportModule,
     DisputesModule,
     AdminModule,
+    AnalyticsModule,
+    ModerationModule,
   ],
   providers: [
     // Two-layer guard model — see docs/api/API_AUTHORIZATION.md.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],
 })

@@ -1,0 +1,5 @@
+{
+  "extends": ["../../packages/config/eslint-preset.js"],
+  "env": { "node": true },
+  "parserOptions": { "project": "./tsconfig.json" }
+}
