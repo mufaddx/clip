@@ -2,10 +2,11 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Button, Card } from "@clip/ui";
+import { Button } from "@clip/ui";
 import type { LoginResponseDto, SignupRoleChoice } from "@clip/types";
 import { apiFetch, ApiError } from "../../../lib/api-client";
 import { appUrlForRole } from "../../../lib/app-urls";
+import { AuthCard, authInputClass, authLabelClass } from "../../../components/auth-card";
 import { IconMegaphone, IconInstagram, IconArrowRight } from "../../../components/icons";
 
 // /signup — reached from the homepage's Brand/Clipper picker (role arrives
@@ -31,13 +32,13 @@ function RoleOption({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-lg border border-slate-200 p-4 text-left transition-colors hover:border-brand-300 hover:bg-brand-50"
+      className="flex w-full items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-4 text-left transition-colors hover:border-white/25 hover:bg-white/10"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/10 text-white">
         {icon}
       </span>
-      <span className="font-semibold text-ink">{title}</span>
-      <IconArrowRight className="ml-auto h-4 w-4 text-slate-400" />
+      <span className="font-semibold text-white">{title}</span>
+      <IconArrowRight className="ml-auto h-4 w-4 text-slate-500" />
     </button>
   );
 }
@@ -55,13 +56,13 @@ function SignupForm() {
 
   if (!roleChoice) {
     return (
-      <Card className="w-full max-w-sm shadow-md">
-        <h1 className="text-xl font-semibold text-ink">Continue as</h1>
+      <AuthCard className="max-w-sm">
+        <h1 className="text-xl font-semibold text-white">Continue as</h1>
         <div className="mt-5 flex flex-col gap-3">
           <RoleOption icon={<IconMegaphone className="h-5 w-5" />} title="Brand" onClick={() => setRoleChoice("BRAND")} />
           <RoleOption icon={<IconInstagram className="h-5 w-5" />} title="Clipper" onClick={() => setRoleChoice("CLIPPER")} />
         </div>
-      </Card>
+      </AuthCard>
     );
   }
 
@@ -79,7 +80,7 @@ function SignupForm() {
       } catch (err) {
         // Already have an account with this email → this is a returning
         // user, not a failed signup. Log them in with the same credentials
-        // instead of making them start over on a different form.
+        // instead of making them find a separate login form.
         if (err instanceof ApiError && err.code === "EMAIL_IN_USE") {
           res = await apiFetch<LoginResponseDto>("/v1/auth/login", {
             method: "POST",
@@ -98,18 +99,18 @@ function SignupForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm shadow-md">
+    <AuthCard className="max-w-sm">
       <button
         onClick={() => setRoleChoice(null)}
-        className="mb-4 flex items-center gap-1 text-sm text-slate-500 hover:text-ink"
+        className="mb-4 flex items-center gap-1 text-sm text-slate-400 hover:text-white"
       >
         <IconArrowRight className="h-3.5 w-3.5 rotate-180" /> Back
       </button>
-      <h1 className="text-xl font-semibold text-ink">Continue as {roleChoice === "BRAND" ? "a Brand" : "a Clipper"}</h1>
+      <h1 className="text-xl font-semibold text-white">Continue as {roleChoice === "BRAND" ? "a Brand" : "a Clipper"}</h1>
 
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-slate-700">Email</span>
+          <span className={authLabelClass}>Email</span>
           <input
             type="email"
             required
@@ -117,12 +118,12 @@ function SignupForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.com"
-            className="h-10 rounded-md border border-slate-300 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className={authInputClass}
           />
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-slate-700">Password</span>
+          <span className={authLabelClass}>Password</span>
           <input
             type="password"
             required
@@ -130,31 +131,31 @@ function SignupForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="At least 8 characters"
-            className="h-10 rounded-md border border-slate-300 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className={authInputClass}
           />
         </label>
 
         {error ? (
-          <p className="rounded-md bg-danger-50 px-3 py-2 text-sm text-danger-700">{error}</p>
+          <p className="rounded-md bg-danger-600/10 px-3 py-2 text-sm text-danger-600">{error}</p>
         ) : null}
 
         <Button type="submit" loading={loading} size="lg" className="mt-2 w-full">
           Continue
         </Button>
 
-        <p className="text-center text-xs text-slate-400">
-          New account? By continuing you agree to CLIP&apos;s{" "}
-          <a href="/terms" className="underline hover:text-slate-600">
+        <p className="text-center text-xs text-slate-500">
+          New account? By continuing you agree to Vidlix&apos;s{" "}
+          <a href="/terms" className="underline hover:text-slate-300">
             Terms
           </a>{" "}
           and{" "}
-          <a href="/privacy" className="underline hover:text-slate-600">
+          <a href="/privacy" className="underline hover:text-slate-300">
             Privacy Policy
           </a>
           .
         </p>
       </form>
-    </Card>
+    </AuthCard>
   );
 }
 

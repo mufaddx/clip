@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button, Card } from "@clip/ui";
+import { Button } from "@clip/ui";
 import type { LoginResponseDto } from "@clip/types";
 import { apiFetch } from "../../../lib/api-client";
 import { appUrlForRole } from "../../../lib/app-urls";
+import { AuthCard, authInputClass, authLabelClass } from "../../../components/auth-card";
 
 // /login — see docs/users/AUTHENTICATION_FLOW.md "Login flow" and
-// docs/ui-ux/PAGE_SPECIFICATIONS.md.
+// docs/ui-ux/PAGE_SPECIFICATIONS.md. Most users never see this page — the
+// homepage's Brand/Clipper picker (/signup?as=) handles login-or-signup in
+// one form — but it stays reachable directly for anyone who wants it.
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -35,13 +38,12 @@ export default function LoginPage() {
   }
 
   return (
-    <Card className="w-full max-w-sm shadow-md">
-      <h1 className="text-2xl font-semibold text-ink">Welcome back</h1>
-      <p className="mt-1 text-sm text-slate-500">Log in to your CLIP account.</p>
+    <AuthCard className="max-w-sm">
+      <h1 className="text-xl font-semibold text-white">Log in</h1>
 
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-slate-700">Email</span>
+          <span className={authLabelClass}>Email</span>
           <input
             type="email"
             required
@@ -49,12 +51,12 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@company.com"
-            className="h-10 rounded-md border border-slate-300 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className={authInputClass}
           />
         </label>
 
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium text-slate-700">Password</span>
+          <span className={authLabelClass}>Password</span>
           <input
             type="password"
             required
@@ -62,12 +64,12 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="h-10 rounded-md border border-slate-300 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            className={authInputClass}
           />
         </label>
 
         {error ? (
-          <p className="rounded-md bg-danger-50 px-3 py-2 text-sm text-danger-700">{error}</p>
+          <p className="rounded-md bg-danger-600/10 px-3 py-2 text-sm text-danger-600">{error}</p>
         ) : null}
 
         <Button type="submit" loading={loading} size="lg" className="mt-1 w-full">
@@ -76,13 +78,13 @@ export default function LoginPage() {
       </form>
 
       <div className="mt-5 flex justify-between text-sm">
-        <Link href="/forgot-password" className="text-slate-500 hover:text-ink hover:underline">
+        <Link href="/forgot-password" className="text-slate-500 hover:text-white hover:underline">
           Forgot password?
         </Link>
-        <Link href="/signup" className="font-medium text-brand-600 hover:underline">
+        <Link href="/signup" className="font-medium text-brand-500 hover:underline">
           Create an account
         </Link>
       </div>
-    </Card>
+    </AuthCard>
   );
 }

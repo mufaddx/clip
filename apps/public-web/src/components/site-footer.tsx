@@ -58,7 +58,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-6 sm:flex-row">
-          <p className="text-sm text-slate-400">© {new Date().getFullYear()} CLIP. All rights reserved.</p>
+          <p className="text-sm text-slate-400">© {new Date().getFullYear()} Vidlix. All rights reserved.</p>
           <p className="text-sm text-slate-400">Made for brands and creators, everywhere.</p>
         </div>
       </div>

@@ -101,7 +101,7 @@ export function AnalyticsMockup() {
           {bars.map((h, i) => (
             <div
               key={i}
-              className="flex-1 rounded-t-sm bg-gradient-to-t from-brand-500 to-brand-300"
+              className="flex-1 rounded-t-sm bg-gradient-to-t from-brand-700 to-brand-500"
               style={{ height: `${h}%` }}
             />
           ))}

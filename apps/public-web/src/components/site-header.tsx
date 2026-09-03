@@ -13,13 +13,13 @@ const NAV_LINKS = [
   { href: "/faq", label: "FAQ" },
 ];
 
-export function Logo({ className = "" }: { className?: string }) {
+export function Logo({ className = "", dark = false }: { className?: string; dark?: boolean }) {
   return (
     <Link href="/" className={`flex items-center gap-2 ${className}`}>
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
-        C
+        V
       </span>
-      <span className="text-lg font-bold tracking-tight text-ink">CLIP</span>
+      <span className={`text-lg font-bold tracking-tight ${dark ? "text-white" : "text-ink"}`}>Vidlix</span>
     </Link>
   );
 }

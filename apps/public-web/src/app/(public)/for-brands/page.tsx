@@ -21,7 +21,7 @@ export default function ForBrandsPage() {
               Reach creators, pay for real performance
             </h1>
             <p className="mt-4 max-w-xl text-lg text-slate-600">
-              Launch a campaign, set your budget and requirements, and let CLIP&apos;s creator
+              Launch a campaign, set your budget and requirements, and let Vidlix&apos;s creator
               network distribute your content — you only pay against qualified, verified
               performance, never raw view counts alone.
             </p>

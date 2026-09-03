@@ -16,7 +16,7 @@ export default function TermsPage() {
         </section>
         <section>
           <h2 className="font-semibold text-ink">Disputes</h2>
-          <p className="mt-1">Either party may open a dispute against a specific outcome; resolutions are decided by CLIP&apos;s platform team based on submitted evidence.</p>
+          <p className="mt-1">Either party may open a dispute against a specific outcome; resolutions are decided by Vidlix&apos;s platform team based on submitted evidence.</p>
         </section>
       </div>
     </main>

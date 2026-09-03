@@ -13,7 +13,7 @@ export default function PricingPage() {
         <p className="mt-1 text-2xl font-semibold text-ink">₹1,000 creator budget</p>
         <p className="mt-1 text-sm text-slate-500">+ ₹150 platform fee (15%) = ₹1,150 total campaign budget</p>
       </div>
-      <p className="mt-6 text-sm text-slate-500">Clippers keep 100% of their calculated earnings — CLIP&apos;s fee is charged to the brand, never deducted from creator payouts.</p>
+      <p className="mt-6 text-sm text-slate-500">Clippers keep 100% of their calculated earnings — Vidlix&apos;s fee is charged to the brand, never deducted from creator payouts.</p>
     </main>
   );
 }

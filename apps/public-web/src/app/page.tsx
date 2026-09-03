@@ -23,7 +23,7 @@ export default function HomePage() {
 
       <div className="relative z-10 flex flex-col items-center text-center">
         <h1 className="text-6xl font-extrabold tracking-tight text-white sm:text-7xl md:text-8xl">
-          CLIP
+          VIDLIX
         </h1>
         <p className="mt-4 max-w-sm text-sm text-slate-400 sm:text-base">
           Creator distribution, paid on real performance.
@@ -65,7 +65,7 @@ export default function HomePage() {
       </div>
 
       <p className="absolute bottom-6 text-xs text-slate-600 sm:bottom-10">
-        © {new Date().getFullYear()} CLIP · <Link href="/how-it-works" className="hover:text-slate-400">How it works</Link>
+        © {new Date().getFullYear()} Vidlix · <Link href="/how-it-works" className="hover:text-slate-400">How it works</Link>
       </p>
     </main>
   );

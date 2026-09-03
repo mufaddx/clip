@@ -2,7 +2,7 @@
 export default function HowItWorksPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-24">
-      <h1 className="text-3xl font-bold text-ink">How CLIP works</h1>
+      <h1 className="text-3xl font-bold text-ink">How Vidlix works</h1>
       <p className="mt-4 max-w-2xl text-slate-600">
         One value loop connects brands, clippers, and the platform team — every other feature
         exists to support, protect, or report on it.
@@ -15,7 +15,7 @@ export default function HowItWorksPage() {
         {"        ↓"}{"\n"}
         Clippers publish approved content on Instagram{"\n"}
         {"        ↓"}{"\n"}
-        CLIP tracks performance via the Meta Graph API{"\n"}
+        Vidlix tracks performance via the Meta Graph API{"\n"}
         {"        ↓"}{"\n"}
         Performance is validated against campaign rules → Qualified Performance{"\n"}
         {"        ↓"}{"\n"}

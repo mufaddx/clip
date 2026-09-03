@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Card } from "@clip/ui";
+import { Button } from "@clip/ui";
 import { apiFetch } from "../../../lib/api-client";
+import { AuthCard, authInputClass, authLabelClass } from "../../../components/auth-card";
 import { IconCheckCircle } from "../../../components/icons";
 
 // /forgot-password — see docs/users/AUTHENTICATION_FLOW.md "Password reset".
@@ -24,21 +25,20 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <Card className="w-full max-w-sm shadow-md">
-      <h1 className="text-2xl font-semibold text-ink">Reset your password</h1>
-      <p className="mt-1 text-sm text-slate-500">We&apos;ll email you a link to get back in.</p>
+    <AuthCard className="max-w-sm">
+      <h1 className="text-xl font-semibold text-white">Reset your password</h1>
 
       {sent ? (
-        <div className="mt-6 flex items-start gap-3 rounded-md bg-success-50 p-4">
+        <div className="mt-6 flex items-start gap-3 rounded-md bg-success-600/10 p-4">
           <IconCheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-success-600" />
-          <p className="text-sm text-success-700">
+          <p className="text-sm text-success-600">
             If an account exists for that email, a reset link is on its way.
           </p>
         </div>
       ) : (
         <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-700">Email</span>
+            <span className={authLabelClass}>Email</span>
             <input
               type="email"
               required
@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
-              className="h-10 rounded-md border border-slate-300 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className={authInputClass}
             />
           </label>
           <Button type="submit" loading={busy} size="lg" className="w-full">
@@ -56,10 +56,10 @@ export default function ForgotPasswordPage() {
       )}
 
       <p className="mt-6 text-center text-sm text-slate-500">
-        <Link href="/login" className="font-medium text-brand-600 hover:underline">
+        <Link href="/login" className="font-medium text-brand-500 hover:underline">
           Back to log in
         </Link>
       </p>
-    </Card>
+    </AuthCard>
   );
 }
