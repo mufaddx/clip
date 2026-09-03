@@ -2,7 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The whole site is dark-themed — see components/dark-backdrop.tsx for the
+   actual background layers; this is just the fallback paint so there's no
+   flash of white before it mounts. */
 body {
-  @apply bg-slate-50 font-sans text-ink;
+  @apply bg-[#0A0A10] font-sans text-slate-200;
   font-variant-numeric: tabular-nums;
 }

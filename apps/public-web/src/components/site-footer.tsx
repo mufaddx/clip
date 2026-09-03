@@ -31,23 +31,23 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
 
 export function SiteFooter() {
   return (
-    <footer className="border-t border-slate-200 bg-white">
+    <footer className="border-t border-white/10">
       <div className="mx-auto max-w-6xl px-6 py-16">
         <div className="grid grid-cols-2 gap-10 sm:grid-cols-4">
           <div className="col-span-2 sm:col-span-1">
             <Logo />
-            <p className="mt-3 max-w-xs text-sm text-slate-500">
+            <p className="mt-3 max-w-xs text-sm text-slate-400">
               The distribution layer between brands and the creators who publish for them —
               paid on verified, qualified performance.
             </p>
           </div>
           {COLUMNS.map((col) => (
             <div key={col.title}>
-              <p className="text-sm font-semibold text-ink">{col.title}</p>
+              <p className="text-sm font-semibold text-white">{col.title}</p>
               <ul className="mt-3 space-y-2">
                 {col.links.map((link) => (
                   <li key={link.href}>
-                    <Link href={link.href} className="text-sm text-slate-500 hover:text-ink">
+                    <Link href={link.href} className="text-sm text-slate-400 hover:text-white">
                       {link.label}
                     </Link>
                   </li>
@@ -57,9 +57,9 @@ export function SiteFooter() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-6 sm:flex-row">
-          <p className="text-sm text-slate-400">© {new Date().getFullYear()} Vidlix. All rights reserved.</p>
-          <p className="text-sm text-slate-400">Made for brands and creators, everywhere.</p>
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row">
+          <p className="text-sm text-slate-500">© {new Date().getFullYear()} Vidlix. All rights reserved.</p>
+          <p className="text-sm text-slate-500">Made for brands and creators, everywhere.</p>
         </div>
       </div>
     </footer>

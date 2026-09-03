@@ -10,12 +10,12 @@ const FAQS = [
 export default function FaqPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-24">
-      <h1 className="text-3xl font-bold text-ink">Frequently asked questions</h1>
-      <div className="mt-8 divide-y divide-slate-200">
+      <h1 className="text-3xl font-bold text-white">Frequently asked questions</h1>
+      <div className="mt-8 divide-y divide-white/10">
         {FAQS.map((f) => (
           <details key={f.q} className="group py-4">
-            <summary className="cursor-pointer list-none font-medium text-ink">{f.q}</summary>
-            <p className="mt-2 text-sm text-slate-600">{f.a}</p>
+            <summary className="cursor-pointer list-none font-medium text-white">{f.q}</summary>
+            <p className="mt-2 text-sm text-slate-400">{f.a}</p>
           </details>
         ))}
       </div>

@@ -10,17 +10,13 @@ export default function ForBrandsPage() {
   return (
     <main>
       <section className="relative overflow-hidden">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-40 -z-10 h-[500px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-100 via-white to-white"
-        />
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-brand-600">For brands</p>
-            <h1 className="mt-2 text-4xl font-bold tracking-tight text-ink sm:text-5xl">
+            <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">For brands</p>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight text-white sm:text-5xl">
               Reach creators, pay for real performance
             </h1>
-            <p className="mt-4 max-w-xl text-lg text-slate-600">
+            <p className="mt-4 max-w-xl text-lg text-slate-400">
               Launch a campaign, set your budget and requirements, and let Vidlix&apos;s creator
               network distribute your content — you only pay against qualified, verified
               performance, never raw view counts alone.
@@ -38,7 +34,7 @@ export default function ForBrandsPage() {
         </div>
       </section>
 
-      <section className="bg-slate-50/70 py-20">
+      <section className="bg-white/[0.02] py-20">
         <div className="mx-auto max-w-5xl px-6">
           <SectionHeading title="Everything you need to run a campaign with confidence" />
           <div className="mt-14 grid gap-10 sm:grid-cols-2">
@@ -78,7 +74,7 @@ export default function ForBrandsPage() {
           </div>
           <div className="order-1 lg:order-2">
             <SectionHeading align="left" title="Know exactly what you're paying for" />
-            <p className="mt-4 text-slate-600">
+            <p className="mt-4 text-slate-400">
               Every campaign closes with a full results report — reach, engagement, qualified vs.
               raw performance, and a per-creator breakdown.
             </p>
@@ -91,7 +87,7 @@ export default function ForBrandsPage() {
       </section>
 
       <section className="mx-auto max-w-4xl px-6 pb-24 text-center">
-        <h2 className="text-3xl font-bold tracking-tight text-ink">Launch your first campaign today</h2>
+        <h2 className="text-3xl font-bold tracking-tight text-white">Launch your first campaign today</h2>
         <Link href="/signup?as=brand" className="mt-6 inline-block">
           <Button size="lg">Start as a Brand</Button>
         </Link>

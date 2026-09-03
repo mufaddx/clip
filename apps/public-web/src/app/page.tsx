@@ -11,12 +11,7 @@ import { IconInstagram, IconMegaphone } from "../components/icons";
 // through the two options below rather than stacked on this screen.
 export default function HomePage() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-ink px-6 py-16">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,_rgba(99,102,241,0.16),_transparent_60%)]"
-      />
-
+    <main className="relative flex min-h-screen flex-col items-center justify-center px-6 py-16">
       <p className="absolute right-6 top-6 text-xs uppercase tracking-[0.2em] text-slate-500 sm:right-10 sm:top-10">
         Brands × Creators
       </p>

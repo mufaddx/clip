@@ -13,38 +13,38 @@ const NAV_LINKS = [
   { href: "/faq", label: "FAQ" },
 ];
 
-export function Logo({ className = "", dark = false }: { className?: string; dark?: boolean }) {
+export function Logo({ className = "" }: { className?: string }) {
   return (
     <Link href="/" className={`flex items-center gap-2 ${className}`}>
       <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
         V
       </span>
-      <span className={`text-lg font-bold tracking-tight ${dark ? "text-white" : "text-ink"}`}>Vidlix</span>
+      <span className="text-lg font-bold tracking-tight text-white">Vidlix</span>
     </Link>
   );
 }
 
+// The whole site is dark (see components/dark-backdrop.tsx) — this header
+// is a translucent dark bar, not the light-mode bar it started as.
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#0A0A10]/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
         <Logo />
 
         <nav className="hidden items-center gap-7 lg:flex">
           {NAV_LINKS.map((link) => (
-            <Link key={link.href} href={link.href} className="text-sm font-medium text-slate-600 hover:text-ink">
+            <Link key={link.href} href={link.href} className="text-sm font-medium text-slate-400 hover:text-white">
               {link.label}
             </Link>
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 lg:flex">
-          <Link href="/login">
-            <Button variant="ghost" size="sm">
-              Log in
-            </Button>
+        <div className="hidden items-center gap-4 lg:flex">
+          <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white">
+            Log in
           </Link>
           <Link href="/signup">
             <Button size="sm">
@@ -58,7 +58,7 @@ export function SiteHeader() {
           type="button"
           aria-label="Toggle menu"
           onClick={() => setOpen((v) => !v)}
-          className="flex h-9 w-9 items-center justify-center rounded-md text-ink lg:hidden"
+          className="flex h-9 w-9 items-center justify-center rounded-md text-white lg:hidden"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
             {open ? <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" /> : <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />}
@@ -67,14 +67,14 @@ export function SiteHeader() {
       </div>
 
       {open ? (
-        <div className="border-t border-slate-200 bg-white px-6 py-4 lg:hidden">
+        <div className="border-t border-white/10 bg-[#0A0A10] px-6 py-4 lg:hidden">
           <nav className="flex flex-col gap-3">
             {NAV_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className="text-sm font-medium text-slate-600"
+                className="text-sm font-medium text-slate-300"
               >
                 {link.label}
               </Link>
@@ -82,9 +82,9 @@ export function SiteHeader() {
           </nav>
           <div className="mt-4 flex flex-col gap-2">
             <Link href="/login" onClick={() => setOpen(false)}>
-              <Button variant="secondary" className="w-full">
+              <span className="flex h-10 w-full items-center justify-center rounded-md border border-white/15 text-sm font-medium text-white">
                 Log in
-              </Button>
+              </span>
             </Link>
             <Link href="/signup" onClick={() => setOpen(false)}>
               <Button className="w-full">Sign up</Button>

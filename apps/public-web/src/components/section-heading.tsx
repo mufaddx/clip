@@ -12,10 +12,10 @@ export function SectionHeading({
   return (
     <div className={align === "center" ? "mx-auto max-w-2xl text-center" : "max-w-xl"}>
       {eyebrow ? (
-        <p className="text-sm font-semibold uppercase tracking-wide text-brand-600">{eyebrow}</p>
+        <p className="text-sm font-semibold uppercase tracking-wide text-brand-500">{eyebrow}</p>
       ) : null}
-      <h2 className="mt-2 text-3xl font-bold tracking-tight text-ink sm:text-4xl">{title}</h2>
-      {description ? <p className="mt-3 text-lg text-slate-600">{description}</p> : null}
+      <h2 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">{title}</h2>
+      {description ? <p className="mt-3 text-lg text-slate-400">{description}</p> : null}
     </div>
   );
 }

@@ -2,13 +2,13 @@
 export default function HowItWorksPage() {
   return (
     <main className="mx-auto max-w-4xl px-6 py-24">
-      <h1 className="text-3xl font-bold text-ink">How Vidlix works</h1>
-      <p className="mt-4 max-w-2xl text-slate-600">
+      <h1 className="text-3xl font-bold text-white">How Vidlix works</h1>
+      <p className="mt-4 max-w-2xl text-slate-400">
         One value loop connects brands, clippers, and the platform team — every other feature
         exists to support, protect, or report on it.
       </p>
 
-      <div className="mt-10 rounded-lg border border-slate-200 bg-slate-50 p-6 font-mono text-xs leading-relaxed text-slate-600">
+      <div className="mt-10 rounded-lg border border-white/10 bg-white/5 p-6 font-mono text-xs leading-relaxed text-slate-400">
         Brand funds a campaign{"\n"}
         {"        ↓"}{"\n"}
         Clippers discover and accept the campaign{"\n"}
@@ -26,8 +26,8 @@ export default function HowItWorksPage() {
 
       <div className="mt-10 grid gap-8 sm:grid-cols-2">
         <div>
-          <h2 className="font-semibold text-ink">For Brands</h2>
-          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-white">For Brands</h2>
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-400">
             <li>Create Account</li>
             <li>Create Campaign</li>
             <li>Add Campaign Funding</li>
@@ -39,8 +39,8 @@ export default function HowItWorksPage() {
           </ol>
         </div>
         <div>
-          <h2 className="font-semibold text-ink">For Clippers</h2>
-          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600">
+          <h2 className="font-semibold text-white">For Clippers</h2>
+          <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-400">
             <li>Create Account</li>
             <li>Complete Profile</li>
             <li>Connect Eligible Account</li>
