@@ -20,6 +20,7 @@ import { DisputesModule } from "./modules/disputes/disputes.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { AnalyticsModule } from "./modules/analytics/analytics.module";
 import { ModerationModule } from "./modules/moderation/moderation.module";
+import { UploadsModule } from "./modules/uploads/uploads.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { RolesGuard } from "./common/guards/roles.guard";
 import { PermissionsGuard } from "./common/guards/permissions.guard";
@@ -53,6 +54,7 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
     AdminModule,
     AnalyticsModule,
     ModerationModule,
+    UploadsModule,
   ],
   providers: [
     // Two-layer guard model — see docs/api/API_AUTHORIZATION.md.

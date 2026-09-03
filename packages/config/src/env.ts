@@ -54,6 +54,18 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().optional(),
   EMAIL_PROVIDER_API_KEY: z.string().optional(),
 
+  // Cloudflare R2 — campaign asset uploads (brand-uploaded video/image
+  // creative for a campaign). S3-compatible: R2_ENDPOINT is the
+  // account-level API endpoint, R2_BUCKET_NAME is passed separately to the
+  // S3 client per-request. R2_PUBLIC_URL is the public r2.dev prefix used
+  // to build the mediaUrl clients actually view. See UploadsService.
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET_NAME: z.string().optional(),
+  R2_ENDPOINT: z.string().optional(),
+  R2_PUBLIC_URL: z.string().optional(),
+
   // Sentry — see docs/architecture/SECURITY_ARCHITECTURE.md and the
   // per-app sentry config files. Optional: apps run fine without it.
   SENTRY_DSN: z.string().optional(),

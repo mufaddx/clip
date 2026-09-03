@@ -28,6 +28,9 @@ export default function CreateCampaignPage() {
   const [description, setDescription] = useState("");
   const [objective, setObjective] = useState<string>(DEFAULT_OBJECTIVE);
   const [mediaUrl, setMediaUrl] = useState("");
+  const [uploadedFileName, setUploadedFileName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [hashtags, setHashtags] = useState("");
   const [requiredMentions, setRequiredMentions] = useState("");
@@ -39,6 +42,40 @@ export default function CreateCampaignPage() {
 
   const estimatedFee = Math.round(Number(creatorBudget || 0) * 100 * 0.15); // 15% default, real rate locked at funding time
   const estimatedTotal = Math.round(Number(creatorBudget || 0) * 100) + estimatedFee;
+
+  // Direct browser-to-R2 upload (see docs/campaigns/CAMPAIGN_CREATION_FLOW.md
+  // "Assets" and apps/api's UploadsService): the API only signs a short-lived
+  // PUT URL — the file bytes never pass through this Next.js app or the API,
+  // they go straight from the browser to the bucket.
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadError(null);
+    setUploading(true);
+    setMediaUrl("");
+    try {
+      const presigned = await apiFetchClient<{ uploadUrl: string; publicUrl: string }>("/v1/uploads/presign", {
+        method: "POST",
+        body: JSON.stringify({ filename: file.name, contentType: file.type }),
+      });
+
+      const putRes = await fetch(presigned.uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      if (!putRes.ok) throw new Error("Upload failed — please try again.");
+
+      setMediaUrl(presigned.publicUrl);
+      setUploadedFileName(file.name);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+      e.target.value = ""; // allow re-selecting the same file if they retry
+    }
+  }
 
   async function submit(alsoSubmitForReview: boolean) {
     setBusy(true);
@@ -110,7 +147,13 @@ export default function CreateCampaignPage() {
 
         {step === 1 && (
           <div className="flex flex-col gap-3">
-            <Field label="Video/Image URL" helperText="A signed upload URL flow replaces this in a later pass."><Input value={mediaUrl} onChange={(e) => setMediaUrl(e.target.value)} /></Field>
+            <Field
+              label="Campaign creative (image or video)"
+              helperText={uploading ? "Uploading…" : mediaUrl ? `Uploaded: ${uploadedFileName}` : "This is what clippers will see and be asked to publish."}
+              error={uploadError ?? undefined}
+            >
+              <Input type="file" accept="image/*,video/*" onChange={handleFileChange} disabled={uploading} />
+            </Field>
             <Field label="Caption"><Textarea value={caption} onChange={(e) => setCaption(e.target.value)} /></Field>
             <Field label="Hashtags (comma-separated)"><Input value={hashtags} onChange={(e) => setHashtags(e.target.value)} /></Field>
             <Field label="Required mentions (comma-separated)"><Input value={requiredMentions} onChange={(e) => setRequiredMentions(e.target.value)} /></Field>
@@ -158,7 +201,7 @@ export default function CreateCampaignPage() {
         <div className="mt-6 flex justify-between">
           <Button variant="secondary" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>Back</Button>
           {step < STEPS.length - 1 ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={step === 0 && !name}>Next</Button>
+            <Button onClick={() => setStep((s) => s + 1)} disabled={(step === 0 && !name) || (step === 1 && uploading)}>Next</Button>
           ) : (
             <div className="flex gap-2">
               <Button variant="secondary" loading={busy} onClick={() => submit(false)}>Save as Draft</Button>
