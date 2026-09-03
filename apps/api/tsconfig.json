@@ -11,8 +11,11 @@
     // @clip/config, @clip/types) whose source lives outside apps/api/src
     // via path aliases — an explicit rootDir here makes tsc reject those
     // as "outside rootDir" (TS6059). Nest's own build (nest-cli.json) is
-    // unaffected; this only matters for `tsc --noEmit` typechecking and
-    // for `nest build`'s emitted dist layout, which is a later concern.
+    // unaffected. Side effect: tsc infers rootDir as the monorepo root
+    // (the common ancestor of every compiled file), so `nest build` emits
+    // to dist/apps/api/src/{main,worker}.js instead of dist/{main,worker}.js
+    // — see the "start"/"start:worker" scripts in package.json, which point
+    // at that nested path on purpose.
   },
   "include": ["src"]
 }
