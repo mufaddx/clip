@@ -1,26 +1,98 @@
 import Link from "next/link";
-import { Button } from "@clip/ui";
+import { Button, StatCard } from "@clip/ui";
+import { SectionHeading } from "../../../components/section-heading";
+import { FeatureRow } from "../../../components/feature-row";
+import { CreatorListMockup, AnalyticsMockup } from "../../../components/mockups";
+import { IconLink, IconShield, IconWallet, IconInstagram, IconClock } from "../../../components/icons";
 
 // /for-clippers — see docs/ui-ux/PAGE_SPECIFICATIONS.md.
 export default function ForClippersPage() {
   return (
-    <main className="mx-auto max-w-3xl px-6 py-24">
-      <h1 className="text-3xl font-bold text-ink">Get paid for content that performs</h1>
-      <p className="mt-4 text-slate-600">
-        Connect your Instagram account, accept campaigns that fit your audience, publish, and earn
-        based on verified qualified performance — tracked transparently, paid out reliably.
-      </p>
+    <main>
+      <section className="relative overflow-hidden">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-40 -z-10 h-[500px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-success-50 via-white to-white"
+        />
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-success-700">For clippers</p>
+            <h1 className="mt-2 text-4xl font-bold tracking-tight text-ink sm:text-5xl">
+              Get paid for content that performs
+            </h1>
+            <p className="mt-4 max-w-xl text-lg text-slate-600">
+              Connect your Instagram account, accept campaigns that fit your audience, publish,
+              and earn based on verified qualified performance — tracked transparently, paid out
+              reliably.
+            </p>
+            <Link href="/signup?as=clipper" className="mt-8 inline-block">
+              <Button size="lg" variant="secondary">
+                <IconInstagram className="h-4 w-4" />
+                Join as a Clipper
+              </Button>
+            </Link>
+          </div>
+          <div className="flex justify-center lg:justify-end">
+            <CreatorListMockup />
+          </div>
+        </div>
+      </section>
 
-      <ul className="mt-8 space-y-3 text-sm text-slate-600">
-        <li>• Campaigns matched to your content categories and account performance</li>
-        <li>• Every metric traces back to an official Instagram API snapshot</li>
-        <li>• Earnings move from Pending to Available once verification closes</li>
-        <li>• Withdraw straight from your wallet</li>
-      </ul>
+      <section className="bg-slate-50/70 py-20">
+        <div className="mx-auto max-w-5xl px-6">
+          <SectionHeading title="Everything you need to earn reliably" />
+          <div className="mt-14 grid gap-10 sm:grid-cols-2">
+            <FeatureRow
+              icon={<IconLink className="h-5 w-5" />}
+              title="Matched to your content"
+              description="Campaigns are filtered by your account's categories and past performance — no cold searching."
+            />
+            <FeatureRow
+              icon={<IconShield className="h-5 w-5" />}
+              title="Every metric is verifiable"
+              description="Traced back to an official Instagram API snapshot — no self-reported numbers, ever."
+            />
+            <FeatureRow
+              icon={<IconClock className="h-5 w-5" />}
+              title="Clear verification windows"
+              description="Know exactly when a campaign's performance locks in and your earnings move to Available."
+            />
+            <FeatureRow
+              icon={<IconWallet className="h-5 w-5" />}
+              title="Withdraw from your wallet"
+              description="Once earnings settle, withdraw straight to your linked bank account through Razorpay."
+            />
+          </div>
+        </div>
+      </section>
 
-      <Link href="/signup?as=clipper" className="mt-8 inline-block">
-        <Button size="lg" variant="secondary">Join as a Clipper</Button>
-      </Link>
+      <section className="py-20">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-6 lg:grid-cols-2">
+          <div>
+            <SectionHeading align="left" title="See your earnings grow, campaign by campaign" />
+            <p className="mt-4 text-slate-600">
+              Your dashboard tracks every campaign you&apos;ve accepted — status, qualified
+              performance, and exactly what you&apos;ve earned.
+            </p>
+            <div className="mt-8 grid grid-cols-2 gap-4">
+              <StatCard label="Avg. account trust score" value="91 / 100" />
+              <StatCard label="Reels verified weekly" value="12K+" />
+            </div>
+          </div>
+          <div className="flex justify-center lg:justify-end">
+            <AnalyticsMockup />
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-4xl px-6 pb-24 text-center">
+        <h2 className="text-3xl font-bold tracking-tight text-ink">Connect your account and start earning</h2>
+        <Link href="/signup?as=clipper" className="mt-6 inline-block">
+          <Button size="lg" variant="secondary">
+            Join as a Clipper
+          </Button>
+        </Link>
+      </section>
     </main>
   );
 }

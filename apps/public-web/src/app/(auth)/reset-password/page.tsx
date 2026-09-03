@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Button } from "@clip/ui";
+import { Button, Card } from "@clip/ui";
 import { apiFetch } from "../../../lib/api-client";
 
 function ResetPasswordForm() {
@@ -28,8 +28,9 @@ function ResetPasswordForm() {
   }
 
   return (
-    <main className="mx-auto flex max-w-sm flex-col px-6 py-24">
+    <Card className="w-full max-w-sm shadow-md">
       <h1 className="text-2xl font-semibold text-ink">Set a new password</h1>
+      <p className="mt-1 text-sm text-slate-500">Choose something you haven&apos;t used before.</p>
 
       <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
@@ -37,16 +38,20 @@ function ResetPasswordForm() {
           <input
             type="password"
             required
+            autoFocus
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder="At least 8 characters"
             className="h-10 rounded-md border border-slate-300 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </label>
-        {error ? <p className="text-sm text-danger-600">{error}</p> : null}
-        <Button type="submit" loading={busy}>Reset password</Button>
+        {error ? <p className="rounded-md bg-danger-50 px-3 py-2 text-sm text-danger-700">{error}</p> : null}
+        <Button type="submit" loading={busy} size="lg" className="w-full">
+          Reset password
+        </Button>
       </form>
-    </main>
+    </Card>
   );
 }
 

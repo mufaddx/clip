@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@clip/ui";
+import { Button, Card } from "@clip/ui";
 import type { LoginResponseDto } from "@clip/types";
 import { apiFetch } from "../../../lib/api-client";
 import { appUrlForRole } from "../../../lib/app-urls";
@@ -35,8 +35,9 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-sm flex-col px-6 py-24">
-      <h1 className="text-2xl font-semibold text-ink">Log in to CLIP</h1>
+    <Card className="w-full max-w-sm shadow-md">
+      <h1 className="text-2xl font-semibold text-ink">Welcome back</h1>
+      <p className="mt-1 text-sm text-slate-500">Log in to your CLIP account.</p>
 
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
@@ -44,8 +45,10 @@ export default function LoginPage() {
           <input
             type="email"
             required
+            autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@company.com"
             className="h-10 rounded-md border border-slate-300 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </label>
@@ -58,25 +61,28 @@ export default function LoginPage() {
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
             className="h-10 rounded-md border border-slate-300 px-3 focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
         </label>
 
-        {error ? <p className="text-sm text-danger-600">{error}</p> : null}
+        {error ? (
+          <p className="rounded-md bg-danger-50 px-3 py-2 text-sm text-danger-700">{error}</p>
+        ) : null}
 
-        <Button type="submit" loading={loading} className="mt-2">
+        <Button type="submit" loading={loading} size="lg" className="mt-1 w-full">
           Log in
         </Button>
       </form>
 
-      <div className="mt-4 flex justify-between text-sm">
-        <Link href="/forgot-password" className="text-slate-500 hover:underline">
+      <div className="mt-5 flex justify-between text-sm">
+        <Link href="/forgot-password" className="text-slate-500 hover:text-ink hover:underline">
           Forgot password?
         </Link>
-        <Link href="/signup" className="text-brand-600 hover:underline">
+        <Link href="/signup" className="font-medium text-brand-600 hover:underline">
           Create an account
         </Link>
       </div>
-    </main>
+    </Card>
   );
 }
