@@ -48,10 +48,13 @@ export class CampaignsController {
     return this.campaignsService.listForBrand(user.id, status);
   }
 
-  @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
+  // Brand sees full ownership-checked detail; a clipper or staff member
+  // gets a read-only view (used for the campaign detail page before/after
+  // accepting) — see CampaignsService.getForActor.
+  @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER", "CLIPPER", "SUPER_ADMIN", "ADMIN", "SUPPORT", "FINANCE_ADMIN")
   @Get(":id")
   async get(@CurrentUser() user: SessionUser, @Param("id") id: string) {
-    return this.campaignsService.getForBrand(user.id, id);
+    return this.campaignsService.getForActor(user.id, user.role, id);
   }
 
   @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
@@ -59,6 +62,12 @@ export class CampaignsController {
   @Patch(":id")
   async update(@CurrentUser() user: SessionUser, @Param("id") id: string, @Body() dto: UpdateCampaignDto) {
     return this.campaignsService.updateDraft(user.id, id, dto);
+  }
+
+  @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
+  @Get(":id/creators")
+  async creators(@CurrentUser() user: SessionUser, @Param("id") id: string) {
+    return this.campaignsService.listCreatorsForBrand(user.id, id);
   }
 
   @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")

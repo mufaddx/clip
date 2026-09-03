@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
-import { prisma } from "@clip/db";
+import { prisma, type InstagramConnectionHealth, type WithdrawalStatus } from "@clip/db";
 import type { UserRole } from "@clip/types";
 import { AuthService } from "../auth/auth.service";
+import { WalletService } from "../wallet/wallet.service";
 import { AuditService } from "../../common/audit/audit.service";
 
 const ADMIN_TEAM_ROLES: UserRole[] = ["ADMIN", "SUPPORT", "FINANCE_ADMIN"];
@@ -15,6 +16,7 @@ const ADMIN_TEAM_ROLES: UserRole[] = ["ADMIN", "SUPPORT", "FINANCE_ADMIN"];
 export class AdminService {
   constructor(
     private readonly authService: AuthService,
+    private readonly walletService: WalletService,
     private readonly auditService: AuditService
   ) {}
 
@@ -99,6 +101,90 @@ export class AdminService {
       after: { role },
     });
     return { success: true };
+  }
+
+  // ── Campaign management — see docs/admin/ADMIN_PANEL.md "Campaign Management" ─
+
+  async listCampaigns(status?: import("@clip/db").CampaignStatus) {
+    return prisma.campaign.findMany({
+      where: status ? { status } : undefined,
+      include: { brand: { select: { companyName: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  // ── Creator management — see docs/admin/ADMIN_PANEL.md "Creator Management" ─
+
+  async listClippers(filter: "all" | "risk-review" | "verification" = "all") {
+    return prisma.creatorProfile.findMany({
+      where: filter === "risk-review" ? { riskFlagged: true } : undefined,
+      include: { user: { select: { email: true, status: true, createdAt: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /** Clearing/flagging a creator — see docs/performance/QUALIFIED_PERFORMANCE.md "Risk review". Never automatic. */
+  async setRiskFlag(adminUserId: string, adminRole: UserRole, creatorId: string, flagged: boolean) {
+    const before = await prisma.creatorProfile.findUniqueOrThrow({ where: { id: creatorId } });
+    const updated = await prisma.creatorProfile.update({ where: { id: creatorId }, data: { riskFlagged: flagged } });
+
+    await this.auditService.log({
+      actorId: adminUserId,
+      actorRole: adminRole,
+      action: flagged ? "clipper.flag_risk" : "clipper.clear_risk",
+      targetType: "creator_profile",
+      targetId: creatorId,
+      before: { riskFlagged: before.riskFlagged },
+      after: { riskFlagged: flagged },
+    });
+
+    return updated;
+  }
+
+  // ── Instagram connection health — see docs/admin/ADMIN_PANEL.md "Instagram" ─
+
+  async listInstagramAccounts(health?: InstagramConnectionHealth) {
+    return prisma.instagramAccount.findMany({
+      where: health ? { connectionHealth: health } : undefined,
+      include: { creator: { select: { displayName: true } } },
+      orderBy: { lastSyncedAt: "desc" },
+    });
+  }
+
+  // ── Finance queue — see docs/admin/ADMIN_PANEL.md "Finance" ──────────────
+
+  async listWithdrawals(status?: WithdrawalStatus) {
+    return prisma.withdrawal.findMany({
+      where: status ? { status } : undefined,
+      include: { wallet: { include: { user: { select: { email: true } } } } },
+      orderBy: { requestedAt: "desc" },
+    });
+  }
+
+  async completeWithdrawal(adminUserId: string, adminRole: UserRole, withdrawalId: string) {
+    const updated = await this.walletService.completeWithdrawal(withdrawalId);
+    await this.auditService.log({
+      actorId: adminUserId,
+      actorRole: adminRole,
+      action: "withdrawal.complete",
+      targetType: "withdrawal",
+      targetId: withdrawalId,
+      after: { status: "PAID" },
+    });
+    return updated;
+  }
+
+  async failWithdrawal(adminUserId: string, adminRole: UserRole, withdrawalId: string, reason: string) {
+    const updated = await this.walletService.failWithdrawal(withdrawalId, reason);
+    await this.auditService.log({
+      actorId: adminUserId,
+      actorRole: adminRole,
+      action: "withdrawal.fail",
+      targetType: "withdrawal",
+      targetId: withdrawalId,
+      after: { status: "FAILED", reason },
+    });
+    return updated;
   }
 
   // ── Audit logs / security events — see docs/admin/AUDIT_LOGS.md ─────────

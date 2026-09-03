@@ -151,6 +151,43 @@ export class CampaignsService {
     return this.getOwnedCampaign(brandUserId, campaignId);
   }
 
+  /** Per-creator breakdown for a campaign — see docs/ui-ux/PAGE_SPECIFICATIONS.md "Brand app" (Creator Performance). */
+  async listCreatorsForBrand(brandUserId: string, campaignId: string) {
+    await this.getOwnedCampaign(brandUserId, campaignId); // ownership check
+    return prisma.campaignCreator.findMany({
+      where: { campaignId },
+      include: {
+        creator: { select: { displayName: true, trustScore: true } },
+        reels: { include: { metrics: true, calculations: { orderBy: { computedAt: "desc" }, take: 1 } } },
+      },
+      orderBy: { acceptedAt: "desc" },
+    });
+  }
+
+  /**
+   * Read-only detail for any authenticated role: full ownership-checked
+   * access for the owning brand, a read view for clippers/staff (used by
+   * the campaign detail page — a clipper needs to see requirements/assets
+   * before and after accepting). See docs/api/API_AUTHORIZATION.md.
+   */
+  async getForActor(actorId: string, actorRole: UserRole, campaignId: string) {
+    if (actorRole === "BRAND_OWNER" || actorRole === "BRAND_TEAM_MEMBER") {
+      return this.getOwnedCampaign(actorId, campaignId);
+    }
+
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      include: { requirements: true, assets: true },
+    });
+    if (!campaign) throw new NotFoundException({ code: "CAMPAIGN_NOT_FOUND", message: "Campaign not found." });
+
+    if (actorRole === "CLIPPER" && campaign.status === "DRAFT") {
+      throw new ForbiddenException({ code: "FORBIDDEN", message: "This campaign isn't published yet." });
+    }
+
+    return campaign;
+  }
+
   // ── Lifecycle transitions — see docs/campaigns/CAMPAIGN_LIFECYCLE.md ─────
 
   async submit(brandUserId: string, campaignId: string) {

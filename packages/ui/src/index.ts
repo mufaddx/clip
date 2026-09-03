@@ -13,3 +13,7 @@ export * from "./nav";
 export * from "./sidebar";
 export * from "./header";
 export * from "./app-shell";
+export * from "./table";
+export * from "./tabs";
+export * from "./form";
+export * from "./modal";

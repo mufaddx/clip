@@ -6,6 +6,7 @@ import { AuditModule } from "./common/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { UsersModule } from "./modules/users/users.module";
 import { BrandsModule } from "./modules/brands/brands.module";
+import { ClippersModule } from "./modules/clippers/clippers.module";
 import { WalletModule } from "./modules/wallet/wallet.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { CampaignsModule } from "./modules/campaigns/campaigns.module";
@@ -38,6 +39,7 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
     AuthModule,
     UsersModule,
     BrandsModule,
+    ClippersModule,
     WalletModule,
     PaymentsModule,
     CampaignsModule,

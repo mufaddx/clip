@@ -17,6 +17,28 @@ export class BrandsService {
     return brand;
   }
 
+  /** Step 2 (Organization Details) + Step 3 (Industry) of docs/users/ONBOARDING_FLOW.md "Brand onboarding steps". */
+  async updateOwnProfile(
+    ownerUserId: string,
+    data: { companyName?: string; website?: string; industry?: string; size?: string; categoryIds?: string[] }
+  ) {
+    const brand = await this.getOwnBrand(ownerUserId);
+    return prisma.brandProfile.update({
+      where: { id: brand.id },
+      data: {
+        companyName: data.companyName,
+        website: data.website,
+        industry: data.industry,
+        size: data.size,
+        categories: data.categoryIds ? { deleteMany: {}, create: data.categoryIds.map((categoryId) => ({ categoryId })) } : undefined,
+      },
+    });
+  }
+
+  async getOwnProfile(ownerUserId: string) {
+    return this.getOwnBrand(ownerUserId);
+  }
+
   async listTeam(ownerUserId: string) {
     const brand = await this.getOwnBrand(ownerUserId);
     return prisma.teamMember.findMany({

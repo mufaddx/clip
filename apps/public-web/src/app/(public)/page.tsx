@@ -64,6 +64,18 @@ export default function HomePage() {
       </section>
 
       <footer className="border-t border-slate-200 py-8 text-center text-sm text-slate-400">
+        <nav className="mb-4 flex flex-wrap justify-center gap-4">
+          <Link href="/about" className="hover:text-slate-600">About</Link>
+          <Link href="/how-it-works" className="hover:text-slate-600">How It Works</Link>
+          <Link href="/for-brands" className="hover:text-slate-600">For Brands</Link>
+          <Link href="/for-clippers" className="hover:text-slate-600">For Clippers</Link>
+          <Link href="/categories" className="hover:text-slate-600">Categories</Link>
+          <Link href="/pricing" className="hover:text-slate-600">Pricing</Link>
+          <Link href="/faq" className="hover:text-slate-600">FAQ</Link>
+          <Link href="/contact" className="hover:text-slate-600">Contact</Link>
+          <Link href="/privacy" className="hover:text-slate-600">Privacy</Link>
+          <Link href="/terms" className="hover:text-slate-600">Terms</Link>
+        </nav>
         © {new Date().getFullYear()} CLIP
       </footer>
     </main>

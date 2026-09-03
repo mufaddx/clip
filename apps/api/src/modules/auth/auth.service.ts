@@ -34,14 +34,25 @@ export class AuthService {
         data: { email: dto.email, passwordHash, role },
       });
 
-      // Every eligible user gets a wallet and, once onboarding starts, a
-      // role-specific profile — see docs/users/ONBOARDING_FLOW.md.
+      // Every eligible user gets a wallet AND a minimal role-specific
+      // profile immediately — CampaignsService/ReelsService depend on
+      // BrandProfile/CreatorProfile existing (see their getBrandId/
+      // getCreatorId), so this can't wait for the onboarding wizard to run.
+      // Onboarding (docs/users/ONBOARDING_FLOW.md) refines these fields
+      // (categories, org details, etc.) rather than creating the row.
       await tx.wallet.create({
         data: {
           userId: created.id,
           ownerType: role === "BRAND_OWNER" ? "BRAND" : "CREATOR",
         },
       });
+
+      const emailLocalPart = dto.email.split("@")[0] ?? "New user";
+      if (role === "BRAND_OWNER") {
+        await tx.brandProfile.create({ data: { userId: created.id, companyName: emailLocalPart } });
+      } else {
+        await tx.creatorProfile.create({ data: { userId: created.id, displayName: emailLocalPart } });
+      }
 
       if (dto.referralCode) {
         const referrer = await tx.user.findUnique({ where: { referralCode: dto.referralCode } });

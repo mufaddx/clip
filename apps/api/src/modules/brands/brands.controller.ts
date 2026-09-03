@@ -11,6 +11,21 @@ import { InviteTeamMemberDto } from "./dto/invite-team-member.dto";
 export class BrandsController {
   constructor(private readonly brandsService: BrandsService) {}
 
+  @Roles("BRAND_OWNER")
+  @Get("me")
+  async getOwnProfile(@CurrentUser() user: SessionUser) {
+    return this.brandsService.getOwnProfile(user.id);
+  }
+
+  @Roles("BRAND_OWNER")
+  @Patch("me")
+  async updateOwnProfile(
+    @CurrentUser() user: SessionUser,
+    @Body() data: { companyName?: string; website?: string; industry?: string; size?: string; categoryIds?: string[] }
+  ) {
+    return this.brandsService.updateOwnProfile(user.id, data);
+  }
+
   @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
   @Get("team")
   async listTeam(@CurrentUser() user: SessionUser) {

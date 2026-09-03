@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from "@nestjs/common";
 import type { SessionUser } from "@clip/types";
+import type { InstagramConnectionHealth, WithdrawalStatus, CampaignStatus } from "@clip/db";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { AdminService } from "./admin.service";
@@ -26,6 +27,48 @@ export class AdminController {
   @Patch("users/:id/reinstate")
   async reinstate(@CurrentUser() user: SessionUser, @Param("id") id: string) {
     return this.adminService.reinstateUser(user.id, user.role, id);
+  }
+
+  @Roles("SUPER_ADMIN", "ADMIN")
+  @Get("campaigns")
+  async listCampaigns(@Query("status") status?: CampaignStatus) {
+    return this.adminService.listCampaigns(status);
+  }
+
+  @Roles("SUPER_ADMIN", "ADMIN")
+  @Get("clippers")
+  async listClippers(@Query("filter") filter: "all" | "risk-review" | "verification" = "all") {
+    return this.adminService.listClippers(filter);
+  }
+
+  @Roles("SUPER_ADMIN", "ADMIN")
+  @Patch("clippers/:id/risk-flag")
+  async setRiskFlag(@CurrentUser() user: SessionUser, @Param("id") id: string, @Body("flagged") flagged: boolean) {
+    return this.adminService.setRiskFlag(user.id, user.role, id, flagged);
+  }
+
+  @Roles("SUPER_ADMIN", "ADMIN")
+  @Get("instagram-accounts")
+  async listInstagramAccounts(@Query("health") health?: InstagramConnectionHealth) {
+    return this.adminService.listInstagramAccounts(health);
+  }
+
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @Get("withdrawals")
+  async listWithdrawals(@Query("status") status?: WithdrawalStatus) {
+    return this.adminService.listWithdrawals(status);
+  }
+
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @Post("withdrawals/:id/complete")
+  async completeWithdrawal(@CurrentUser() user: SessionUser, @Param("id") id: string) {
+    return this.adminService.completeWithdrawal(user.id, user.role, id);
+  }
+
+  @Roles("SUPER_ADMIN", "FINANCE_ADMIN")
+  @Post("withdrawals/:id/fail")
+  async failWithdrawal(@CurrentUser() user: SessionUser, @Param("id") id: string, @Body("reason") reason: string) {
+    return this.adminService.failWithdrawal(user.id, user.role, id, reason);
   }
 
   @Roles("SUPER_ADMIN")

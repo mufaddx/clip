@@ -32,6 +32,19 @@ export class ReferralsService {
     };
   }
 
+  /** Admin-facing — see docs/admin/ADMIN_PANEL.md "Referral System". */
+  async listAll(status?: import("@clip/db").ReferralStatus) {
+    return prisma.referral.findMany({
+      where: status ? { status } : undefined,
+      include: {
+        reward: true,
+        referrer: { select: { email: true } },
+        referred: { select: { email: true, createdAt: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   async getMyReferrals(userId: string) {
     await this.expireStale(userId);
     return prisma.referral.findMany({
@@ -87,6 +100,34 @@ export class ReferralsService {
     });
 
     await this.walletService.recognizeReferralReward(referral.referrerId, amount, referral.id);
+  }
+
+  /**
+   * Admin decision on a FLAGGED referral — see
+   * docs/referrals/REFERRAL_FRAUD_PROTECTION.md "What happens on a flag".
+   * Never automatic; always a deliberate human call.
+   */
+  async decideFlagged(referralId: string, approve: boolean) {
+    const referral = await prisma.referral.findUniqueOrThrow({ where: { id: referralId } });
+    if (referral.status !== "FLAGGED") return referral;
+
+    if (!approve) {
+      return prisma.referral.update({ where: { id: referralId }, data: { status: "DENIED" } });
+    }
+
+    const rules = await this.getRules();
+    const amount = Math.min(rules.rewardAmount, rules.maxReward);
+    const updated = await prisma.$transaction(async (tx) => {
+      const r = await tx.referral.update({ where: { id: referralId }, data: { status: "REWARDED" } });
+      await tx.referralReward.upsert({
+        where: { referralId },
+        create: { referralId, amount, issuedAt: new Date() },
+        update: { amount, issuedAt: new Date() },
+      });
+      return r;
+    });
+    await this.walletService.recognizeReferralReward(referral.referrerId, amount, referralId);
+    return updated;
   }
 
   /**
