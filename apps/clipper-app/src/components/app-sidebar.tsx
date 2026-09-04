@@ -10,7 +10,7 @@ export function AppSidebar() {
     <Sidebar
       items={clipperNav}
       activePath={pathname}
-      logo={<span className="font-bold text-brand-600">CLIP</span>}
+      logo={<img src="/logo-wordmark.png" alt="Vidlix" className="h-5 w-auto" />}
     />
   );
 }

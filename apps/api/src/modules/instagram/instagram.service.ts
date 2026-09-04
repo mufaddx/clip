@@ -1,8 +1,12 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
 import { randomBytes } from "crypto";
 import { prisma } from "@clip/db";
 import { getEnv } from "@clip/config";
+import { createRedisConnection } from "../../workers/connection";
 import { encryptToken, decryptToken } from "./token-crypto";
+
+const STATE_KEY_PREFIX = "instagram_oauth_state:";
+const STATE_TTL_SECONDS = 10 * 60; // the OAuth round-trip through Instagram's consent screen can take a while
 
 /**
  * The ONLY module that talks to the Meta/Instagram Graph API — see
@@ -18,6 +22,8 @@ import { encryptToken, decryptToken } from "./token-crypto";
  */
 @Injectable()
 export class InstagramService {
+  private redis = createRedisConnection();
+
   private requireMetaConfig() {
     const env = getEnv();
     if (!env.META_APP_ID || !env.META_APP_SECRET || !env.META_REDIRECT_URI || !env.TOKEN_ENCRYPTION_KEY) {
@@ -29,10 +35,22 @@ export class InstagramService {
     return env;
   }
 
-  /** Step 1 of docs/architecture/META_INSTAGRAM_INTEGRATION.md "Account authorization flow". */
-  getAuthorizationUrl(): { url: string; state: string } {
+  /**
+   * Step 1 of docs/architecture/META_INSTAGRAM_INTEGRATION.md "Account
+   * authorization flow". `state` is stored server-side (Redis, short TTL)
+   * mapped to the requesting user — the callback below resolves the user
+   * from this rather than from the browser's own session cookie. That's
+   * deliberate, not just CSRF protection: the callback is a top-level
+   * redirect Instagram itself sends the browser on, arbitrarily later than
+   * the user clicked "Connect" (however long they take on Instagram's
+   * consent screen), and by then the 15-minute access token from login
+   * may well have expired with nothing in this flow to refresh it.
+   */
+  async getAuthorizationUrl(userId: string): Promise<{ url: string; state: string }> {
     const env = this.requireMetaConfig();
     const state = randomBytes(16).toString("hex");
+    await this.redis.set(`${STATE_KEY_PREFIX}${state}`, userId, "EX", STATE_TTL_SECONDS);
+
     const scopes = ["instagram_business_basic", "instagram_business_content_publish", "instagram_business_manage_insights"];
 
     const url = new URL("https://api.instagram.com/oauth/authorize");
@@ -43,6 +61,18 @@ export class InstagramService {
     url.searchParams.set("state", state);
 
     return { url: url.toString(), state };
+  }
+
+  /** Resolves and consumes (single-use) the state issued by
+   * getAuthorizationUrl — throws if it's missing/expired/already used. */
+  async resolveUserIdFromState(state: string): Promise<string> {
+    const key = `${STATE_KEY_PREFIX}${state}`;
+    const userId = await this.redis.get(key);
+    if (!userId) {
+      throw new UnauthorizedException({ code: "OAUTH_STATE_INVALID", message: "This connection attempt expired — please try again." });
+    }
+    await this.redis.del(key);
+    return userId;
   }
 
   /** Step 2-4: exchange code → short-lived → long-lived token, then store the connected account. */

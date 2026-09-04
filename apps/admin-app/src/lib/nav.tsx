@@ -1,11 +1,29 @@
-import type { NavItem } from "@clip/ui";
+import {
+  IconDashboard,
+  IconUsers,
+  IconMegaphone,
+  IconUser,
+  IconInstagram,
+  IconChart,
+  IconWallet,
+  IconGift,
+  IconLifebuoy,
+  IconAlertTriangle,
+  IconShield,
+  IconFileText,
+  IconBell,
+  IconSettings,
+  IconLayers,
+  type NavItem,
+} from "@clip/ui";
 
 // See docs/ui-ux/NAVIGATION_ARCHITECTURE.md "Admin (admin.domain.in)".
 export const adminNav: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard" },
+  { label: "Dashboard", href: "/dashboard", icon: <IconDashboard /> },
   {
     label: "User Management",
     href: "/users",
+    icon: <IconUsers />,
     children: [
       { label: "All Users", href: "/users/all" },
       { label: "Brands", href: "/users/brands" },
@@ -17,6 +35,7 @@ export const adminNav: NavItem[] = [
   {
     label: "Campaign Management",
     href: "/campaigns",
+    icon: <IconMegaphone />,
     children: [
       { label: "All", href: "/campaigns/all" },
       { label: "Pending Approval", href: "/campaigns/pending-approval" },
@@ -29,6 +48,7 @@ export const adminNav: NavItem[] = [
   {
     label: "Creator Management",
     href: "/clippers",
+    icon: <IconUser />,
     children: [
       { label: "All Clippers", href: "/clippers/all" },
       { label: "Verification", href: "/clippers/verification" },
@@ -39,6 +59,7 @@ export const adminNav: NavItem[] = [
   {
     label: "Instagram",
     href: "/instagram",
+    icon: <IconInstagram />,
     children: [
       { label: "Connected Accounts", href: "/instagram/connected-accounts" },
       { label: "Connection Health", href: "/instagram/connection-health" },
@@ -48,6 +69,7 @@ export const adminNav: NavItem[] = [
   {
     label: "Performance",
     href: "/performance",
+    icon: <IconChart />,
     children: [
       { label: "Overview", href: "/performance/overview" },
       { label: "Metric Tracking", href: "/performance/metric-tracking" },
@@ -58,6 +80,7 @@ export const adminNav: NavItem[] = [
   {
     label: "Finance",
     href: "/finance",
+    icon: <IconWallet />,
     children: [
       { label: "Platform Wallet", href: "/finance/platform-wallet" },
       { label: "Payments", href: "/finance/payments" },
@@ -70,6 +93,7 @@ export const adminNav: NavItem[] = [
   {
     label: "Referral System",
     href: "/referrals",
+    icon: <IconGift />,
     children: [
       { label: "Overview", href: "/referrals/overview" },
       { label: "Referrals", href: "/referrals/list" },
@@ -77,15 +101,16 @@ export const adminNav: NavItem[] = [
       { label: "Rules", href: "/referrals/rules" },
     ],
   },
-  { label: "Support", href: "/support" },
-  { label: "Disputes", href: "/disputes" },
-  { label: "Content Moderation", href: "/moderation" },
-  { label: "Reports", href: "/reports" },
-  { label: "Notifications", href: "/notifications" },
-  { label: "Settings", href: "/settings" },
+  { label: "Support", href: "/support", icon: <IconLifebuoy /> },
+  { label: "Disputes", href: "/disputes", icon: <IconAlertTriangle /> },
+  { label: "Content Moderation", href: "/moderation", icon: <IconLayers /> },
+  { label: "Reports", href: "/reports", icon: <IconFileText /> },
+  { label: "Notifications", href: "/notifications", icon: <IconBell /> },
+  { label: "Settings", href: "/settings", icon: <IconSettings /> },
   {
     label: "Security",
     href: "/security",
+    icon: <IconShield />,
     children: [
       { label: "Audit Logs", href: "/security/audit-logs" },
       { label: "Security Events", href: "/security/security-events" },

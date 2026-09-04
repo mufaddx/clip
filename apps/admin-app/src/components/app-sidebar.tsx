@@ -10,7 +10,12 @@ export function AppSidebar() {
     <Sidebar
       items={adminNav}
       activePath={pathname}
-      logo={<span className="font-bold text-brand-600">CLIP Admin</span>}
+      logo={
+        <div className="flex items-center gap-2">
+          <img src="/logo-wordmark.png" alt="Vidlix" className="h-5 w-auto" />
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">ADMIN</span>
+        </div>
+      }
     />
   );
 }

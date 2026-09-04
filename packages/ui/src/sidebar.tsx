@@ -51,10 +51,11 @@ function SidebarGroup({
         onClick={item.children ? () => setOpen((o) => !o) : undefined}
         title={collapsed ? item.label : undefined}
         className={cn(
-          "flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          "flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
           active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-50"
         )}
       >
+        {item.icon ? <span className="h-[18px] w-[18px] shrink-0 [&>svg]:h-full [&>svg]:w-full">{item.icon}</span> : null}
         {!collapsed && <span className="truncate">{item.label}</span>}
       </a>
       {item.children && open && !collapsed ? (

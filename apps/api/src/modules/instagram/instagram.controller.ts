@@ -1,9 +1,9 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Post, Query, Req } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Param, Post, Query, Req, Res } from "@nestjs/common";
 import type { RawBodyRequest } from "@nestjs/common";
-import type { Request } from "express";
+import type { Request, Response } from "express";
+import { getEnv } from "@clip/config";
 import { createHmac, timingSafeEqual } from "crypto";
 import type { SessionUser } from "@clip/types";
-import { getEnv } from "@clip/config";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Public } from "../../common/decorators/public.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
@@ -22,17 +22,34 @@ export class InstagramController {
 
   @Roles("CLIPPER")
   @Get("oauth/start")
-  async oauthStart() {
-    // NOTE: a production-hardened version persists `state` server-side
-    // keyed by the requesting user and checks it on callback (CSRF
-    // protection); this pass trusts the round-tripped value.
-    return this.instagramService.getAuthorizationUrl();
+  async oauthStart(@CurrentUser() user: SessionUser) {
+    return this.instagramService.getAuthorizationUrl(user.id);
   }
 
-  @Roles("CLIPPER")
+  // Public: this is a top-level redirect Instagram's own server sends the
+  // browser, not a same-session API call — the user is identified via the
+  // server-side `state` lookup (see getAuthorizationUrl), not the request's
+  // own session cookie/JWT. See docs/architecture/META_INSTAGRAM_INTEGRATION.md
+  // "Account authorization flow".
+  @Public()
   @Get("oauth/callback")
-  async oauthCallback(@CurrentUser() user: SessionUser, @Query("code") code: string) {
-    return this.instagramService.connectAccount(user.id, code);
+  async oauthCallback(
+    @Query("code") code: string,
+    @Query("state") state: string,
+    @Res({ passthrough: false }) res: Response
+  ) {
+    // The browser lands here via a top-level redirect from Instagram, not
+    // a fetch() call from our own frontend — returning JSON would just
+    // dump raw text on screen. Redirect back into the app instead, with a
+    // query param it can turn into a toast/banner.
+    const instagramPageUrl = `${getEnv().CLIPPER_APP_URL}/instagram`;
+    try {
+      const userId = await this.instagramService.resolveUserIdFromState(state);
+      await this.instagramService.connectAccount(userId, code);
+      return res.redirect(`${instagramPageUrl}?connected=1`);
+    } catch {
+      return res.redirect(`${instagramPageUrl}?connected=0`);
+    }
   }
 
   @Roles("CLIPPER")
