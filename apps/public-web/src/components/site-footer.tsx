@@ -19,6 +19,9 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/about", label: "About" },
       { href: "/faq", label: "FAQ" },
       { href: "/contact", label: "Contact" },
+      { href: "/careers", label: "Careers" },
+      { href: "/press", label: "Press & media" },
+      { href: "/blog", label: "Blog" },
     ],
   },
   {
@@ -27,6 +30,20 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/privacy", label: "Privacy policy" },
       { href: "/terms", label: "Terms of service" },
       { href: "/refund-policy", label: "Refund & cancellation policy" },
+      { href: "/cookie-policy", label: "Cookie policy" },
+      { href: "/acceptable-use", label: "Acceptable use" },
+      { href: "/grievance-officer", label: "Grievance officer" },
+    ],
+  },
+  {
+    title: "Resources",
+    links: [
+      { href: "/referral-program", label: "Referral program" },
+      { href: "/trust-safety", label: "Trust & safety" },
+      { href: "/security", label: "Security" },
+      { href: "/instagram-integration", label: "Instagram integration" },
+      { href: "/landing-page", label: "Platform overview" },
+      { href: "/sitemap", label: "Sitemap" },
     ],
   },
 ];
@@ -54,8 +71,8 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-white/10">
       <div className="mx-auto max-w-6xl px-6 py-16">
-        <div className="grid grid-cols-2 gap-10 sm:grid-cols-4">
-          <div className="col-span-2 sm:col-span-1">
+        <div className="grid grid-cols-2 gap-10 sm:grid-cols-3 lg:grid-cols-5">
+          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
             <Logo />
             <p className="mt-3 max-w-xs text-sm text-slate-400">
               The distribution layer between brands and the creators who publish for them —

@@ -1,20 +1,20 @@
 import Link from "next/link";
 import { IconInstagram, IconMegaphone } from "../components/icons";
 import { HeroParticles } from "../components/hero-particles";
-import { SiteFooter } from "../components/site-footer";
 
-// The home page is a deliberate minimal "gate" screen for the hero itself —
-// not the full marketing site (that lives at /for-brands, /for-clippers,
-// /pricing, etc., under the (public) route group and its own header/footer).
-// This is why it's app/page.tsx at the root rather than (public)/page.tsx.
-// It still ends in the same SiteFooter as every other page, though, so the
-// full set of product/company/legal/payments links is always one scroll
-// away rather than missing entirely on the very first page a visitor sees.
+// The home page is a deliberate minimal "gate" screen — not the full
+// marketing site (that lives at /for-brands, /for-clippers, /pricing,
+// etc., under the (public) route group and its own header/footer, plus
+// the single-page overview at /landing-page). This is why it's
+// app/page.tsx at the root rather than (public)/page.tsx: it intentionally
+// opts out of the full site chrome to stay one uncluttered screen. The
+// "More" link below the logo is the one way out of that minimalism —
+// straight to /landing-page, not a duplicated footer bolted onto the gate
+// screen itself.
 export default function HomePage() {
   return (
-    <main className="relative flex min-h-screen flex-col">
-      <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-16 text-center">
-        <HeroParticles />
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16 text-center">
+      <HeroParticles />
 
         <div className="relative z-10 flex flex-col items-center">
           {/* Meta's own mark — not "Verified by Meta" (that would misrepresent
@@ -64,9 +64,10 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-      </div>
 
-      <SiteFooter />
+      <p className="absolute bottom-6 text-xs text-slate-600 sm:bottom-10">
+        © {new Date().getFullYear()} Vidlix · <Link href="/landing-page" className="hover:text-slate-400">More</Link>
+      </p>
     </main>
   );
 }
