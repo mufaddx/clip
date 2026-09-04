@@ -21,6 +21,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Sentry — a validated 400/403/404 is expected application behavior,
     // not an incident. Sentry.captureException no-ops if SENTRY_DSN isn't set.
     if (status >= 500) {
+      // Sentry.captureException no-ops without a DSN — this console.error
+      // is what actually shows up in Railway's Deploy Logs when it's
+      // unset, so a 500 is never a silent, undiagnosable dead end.
+      console.error("Unhandled exception:", exception);
       Sentry.captureException(exception);
     }
 
