@@ -73,6 +73,16 @@ async function main() {
     create: { key: "earnings_settlement_window_days", value: 7 },
   });
 
+  // Per-account/post rate (minor units) a brand's campaign budget is
+  // derived from at creation — see CampaignsService.createDraft and
+  // docs/admin/ADMIN_PANEL.md "Settings". A SUPER_ADMIN can change this any
+  // time from admin.domain.in/settings.
+  await prisma.systemSetting.upsert({
+    where: { key: "rate_per_account" },
+    update: {},
+    create: { key: "rate_per_account", value: 100000 }, // ₹1,000 per clipper account/post
+  });
+
   await prisma.systemSetting.upsert({
     where: { key: "referral_rules" },
     update: {},

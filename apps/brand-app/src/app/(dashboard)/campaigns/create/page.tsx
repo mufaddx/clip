@@ -11,19 +11,18 @@ interface CategoryOption {
   name: string;
 }
 
-const OBJECTIVES = ["DISTRIBUTION", "VIEWS", "REACH", "ENGAGEMENT", "QUALITY_PERFORMANCE"] as const;
-const DEFAULT_OBJECTIVE: (typeof OBJECTIVES)[number] = "VIEWS";
 // The backend's `type` field is a free-form string (see CreateCampaignDto) —
 // this list is just a curated set of common campaign types for the picker.
-const CAMPAIGN_TYPES = ["Product Launch", "Brand Awareness", "Sale / Promotion", "Event", "UGC / Testimonial", "App Install", "Other"];
+const CAMPAIGN_TYPES = ["Product Launch", "Brand Awareness", "Sale / Promotion", "Event", "UGC / Testimonial", "Other"];
 const STEPS = ["Basic Information", "Content", "Creator Requirements", "Performance Targets", "Budget", "Review"];
 
 /**
  * Campaign creation — see docs/campaigns/CAMPAIGN_CREATION_FLOW.md. All six
- * steps are collected client-side and posted as one draft on Review (Step
- * 4's objective selection is folded into Step 1 here since the backend's
- * CreateCampaignDto takes it up front); "Submit for Review" then calls
- * /submit, matching docs/campaigns/CAMPAIGN_LIFECYCLE.md.
+ * steps are collected client-side and posted as one draft on Review; every
+ * campaign here pays for VIEWS (the platform doesn't do reach/engagement/
+ * distribution-style objectives), so there's no objective picker — the
+ * backend defaults it. "Submit for Review" then calls /submit, matching
+ * docs/campaigns/CAMPAIGN_LIFECYCLE.md.
  */
 export default function CreateCampaignPage() {
   const router = useRouter();
@@ -34,7 +33,6 @@ export default function CreateCampaignPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [description, setDescription] = useState("");
-  const [objective, setObjective] = useState<string>(DEFAULT_OBJECTIVE);
   const [mediaUrl, setMediaUrl] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -45,28 +43,43 @@ export default function CreateCampaignPage() {
   const [instructions, setInstructions] = useState("");
   const [minFollowers, setMinFollowers] = useState("");
   const [minTrustScore, setMinTrustScore] = useState("");
-  const [maxParticipants, setMaxParticipants] = useState("");
-  const [creatorBudget, setCreatorBudget] = useState("");
+  // Doubles as the hard cap on acceptances AND the budget driver — see
+  // "Budget" step below.
+  const [accountsWanted, setAccountsWanted] = useState("");
+  const [durationDays, setDurationDays] = useState("");
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+  // Minor units per clipper account/post — admin-set, see
+  // /v1/campaigns/account-rate.
+  const [ratePerAccount, setRatePerAccount] = useState<number | null>(null);
 
   useEffect(() => {
     apiFetchClient<CategoryOption[]>("/v1/categories")
       .then(setCategories)
       .catch(() => setCategories([])); // non-fatal — the picker just shows empty if this fails
+    apiFetchClient<{ ratePerAccount: number }>("/v1/campaigns/account-rate")
+      .then((r) => setRatePerAccount(r.ratePerAccount))
+      .catch(() => setRatePerAccount(null));
   }, []);
 
   function toggleCategory(id: string) {
     setSelectedCategoryIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
   }
 
-  const estimatedFee = Math.round(Number(creatorBudget || 0) * 100 * 0.15); // 15% default, real rate locked at funding time
-  const estimatedTotal = Math.round(Number(creatorBudget || 0) * 100) + estimatedFee;
+  const accounts = Number(accountsWanted || 0);
+  // ratePerAccount is in minor units (paise); everything shown to the
+  // brand is in rupees.
+  const ratePerAccountRupees = ratePerAccount != null ? ratePerAccount / 100 : null;
+  const creatorBudgetRupees = ratePerAccountRupees != null ? accounts * ratePerAccountRupees : 0;
+  const estimatedFee = Math.round(creatorBudgetRupees * 100 * 0.15); // 15% default, real rate locked at funding time
+  const estimatedTotal = Math.round(creatorBudgetRupees * 100) + estimatedFee;
 
   // Direct browser-to-R2 upload (see docs/campaigns/CAMPAIGN_CREATION_FLOW.md
   // "Assets" and apps/api's UploadsService): the API only signs a short-lived
   // PUT URL — the file bytes never pass through this Next.js app or the API,
-  // they go straight from the browser to the bucket.
+  // they go straight from the browser to the bucket. The uploaded file
+  // itself lives in R2 indefinitely — nothing here expires or deletes it
+  // unless the campaign's asset is explicitly removed.
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -107,9 +120,8 @@ export default function CreateCampaignPage() {
           name,
           type: type || undefined,
           description: description || undefined,
-          objective,
-          creatorBudget: Math.round(Number(creatorBudget || 0) * 100),
-          maxParticipants: maxParticipants ? Number(maxParticipants) : undefined,
+          maxParticipants: accounts || undefined,
+          durationDays: durationDays ? Number(durationDays) : undefined,
           requirements: {
             minFollowers: minFollowers ? Number(minFollowers) : undefined,
             minTrustScore: minTrustScore ? Number(minTrustScore) : undefined,
@@ -167,11 +179,6 @@ export default function CreateCampaignPage() {
               </Select>
             </Field>
             <Field label="Description"><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
-            <Field label="Objective">
-              <Select value={objective} onChange={(e) => setObjective(e.target.value)}>
-                {OBJECTIVES.map((o) => <option key={o} value={o}>{o.replace("_", " ")}</option>)}
-              </Select>
-            </Field>
           </div>
         )}
 
@@ -223,40 +230,59 @@ export default function CreateCampaignPage() {
             </Field>
             <Field label="Minimum followers"><Input type="number" value={minFollowers} onChange={(e) => setMinFollowers(e.target.value)} /></Field>
             <Field label="Minimum trust score (0-100)"><Input type="number" value={minTrustScore} onChange={(e) => setMinTrustScore(e.target.value)} /></Field>
-            <Field label="Maximum participants"><Input type="number" value={maxParticipants} onChange={(e) => setMaxParticipants(e.target.value)} /></Field>
           </div>
         )}
 
         {step === 3 && (
           <div>
             <p className="text-sm text-slate-600">
-              Performance target: <strong>{objective.replace("_", " ")}</strong> (set in Step 1 — this determines which
-              qualified-performance rule set applies to this campaign&apos;s reels).
+              Performance target: <strong>Views</strong> — every campaign on Vidlix pays clippers to repost your
+              content, and reels are tracked on the views/engagement they actually get.
             </p>
           </div>
         )}
 
         {step === 4 && (
           <div className="flex flex-col gap-3">
-            <Field label="Creator Budget (₹)"><Input type="number" min="0" value={creatorBudget} onChange={(e) => setCreatorBudget(e.target.value)} required /></Field>
-            <p className="text-sm text-slate-500">Estimated platform fee (15%): {formatCurrency(estimatedFee)}</p>
-            <p className="text-sm font-semibold text-ink">Estimated total campaign budget: {formatCurrency(estimatedTotal)}</p>
+            <Field
+              label="Number of clipper accounts"
+              helperText="How many clippers you want reposting this — this is also the maximum number who can accept."
+            >
+              <Input type="number" min="1" value={accountsWanted} onChange={(e) => setAccountsWanted(e.target.value)} required />
+            </Field>
+            <Field label="Campaign duration (days)" helperText="How long this campaign should stay open to new clippers.">
+              <Input type="number" min="1" value={durationDays} onChange={(e) => setDurationDays(e.target.value)} />
+            </Field>
+
+            <div className="mt-2 rounded-lg bg-slate-50 p-4 text-sm">
+              <p className="text-slate-600">
+                Rate: <strong>{ratePerAccountRupees != null ? formatCurrency(Math.round(ratePerAccountRupees * 100)) : "…"}</strong> per
+                clipper account/post
+              </p>
+              <p className="mt-1 text-slate-500">
+                Views per account aren&apos;t guaranteed — a post can get anywhere from a few hundred to well over a
+                million views depending on that clipper&apos;s own reach. You&apos;re paying for {accounts || 0}{" "}
+                clipper slot{accounts === 1 ? "" : "s"}, not a fixed view count.
+              </p>
+              <p className="mt-2 font-semibold text-ink">Estimated platform fee (15%): {formatCurrency(estimatedFee)}</p>
+              <p className="font-semibold text-ink">Estimated total campaign budget: {formatCurrency(estimatedTotal)}</p>
+            </div>
           </div>
         )}
 
         {step === 5 && (
           <div className="space-y-2 text-sm">
             <p><strong>Name:</strong> {name}</p>
-            <p><strong>Objective:</strong> {objective.replace("_", " ")}</p>
             <p>
               <strong>Categories:</strong>{" "}
               {selectedCategoryIds.length > 0
                 ? categories.filter((c) => selectedCategoryIds.includes(c.id)).map((c) => c.name).join(", ")
                 : "Open to all clippers"}
             </p>
-            <p><strong>Creator budget:</strong> {formatCurrency(Math.round(Number(creatorBudget || 0) * 100))}</p>
+            <p><strong>Clipper accounts:</strong> {accounts || "—"}</p>
+            <p><strong>Duration:</strong> {durationDays ? `${durationDays} days` : "Not set"}</p>
+            <p><strong>Creator budget:</strong> {formatCurrency(Math.round(creatorBudgetRupees * 100))}</p>
             <p><strong>Estimated total:</strong> {formatCurrency(estimatedTotal)}</p>
-            <p><strong>Max participants:</strong> {maxParticipants || "Unlimited"}</p>
           </div>
         )}
 
@@ -265,7 +291,12 @@ export default function CreateCampaignPage() {
         <div className="mt-6 flex justify-between">
           <Button variant="secondary" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>Back</Button>
           {step < STEPS.length - 1 ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={(step === 0 && !name) || (step === 1 && uploading)}>Next</Button>
+            <Button
+              onClick={() => setStep((s) => s + 1)}
+              disabled={(step === 0 && !name) || (step === 1 && uploading) || (step === 4 && !accounts)}
+            >
+              Next
+            </Button>
           ) : (
             <div className="flex gap-2">
               <Button variant="secondary" loading={busy} onClick={() => submit(false)}>Save as Draft</Button>

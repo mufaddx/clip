@@ -35,6 +35,16 @@ export class CampaignsController {
 
   // ── Brand side ────────────────────────────────────────────────────────
 
+  // The current per-account/post rate (admin-set — see AdminController's
+  // generic /v1/admin/settings/:key) so the brand's Create Campaign form
+  // can show/derive a budget from a clipper-slot count without needing
+  // admin access itself. Declared before the ":id" wildcard below.
+  @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
+  @Get("account-rate")
+  async accountRate() {
+    return { ratePerAccount: await this.campaignsService.getRatePerAccount() };
+  }
+
   @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
   @RequirePermission("CAMPAIGNS_CREATE")
   @Post()

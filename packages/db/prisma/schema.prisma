@@ -412,7 +412,17 @@ model Campaign {
   lockedAmount    Int               @default(0) @map("locked_amount") // mirrors the brand wallet's LOCKED bucket for this campaign
   spentAmount     Int               @default(0) @map("spent_amount") // mirrors SPENT — sum of earnings posted from this campaign
   currency        String            @default("INR")
+  // The number of clipper slots being bought — creatorBudget is derived
+  // from this × the platform's per-account rate at create time (see
+  // CampaignsService.createDraft), and it's still the hard cap on
+  // acceptances (see CampaignsService.accept). Views per account vary
+  // wildly and aren't guaranteed, so this platform prices per account/post
+  // rather than per view — see docs/campaigns/CAMPAIGN_CREATION_FLOW.md.
   maxParticipants Int?              @map("max_participants")
+  // How many days the brand wants this campaign to stay LIVE and accepting
+  // clippers — informational for now; nothing currently auto-completes a
+  // campaign when this elapses (see docs/campaigns/CAMPAIGN_LIFECYCLE.md).
+  durationDays    Int?              @map("duration_days")
   rejectedReason  String?           @map("rejected_reason")
   submittedAt     DateTime?         @map("submitted_at")
   approvedAt      DateTime?         @map("approved_at")

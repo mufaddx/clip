@@ -76,8 +76,37 @@ export class CampaignsService {
   // ── Creation (Step 1/2/3/4 folded into one draft create — see
   // docs/campaigns/CAMPAIGN_CREATION_FLOW.md) ──────────────────────────────
 
+  /** Falls back to a placeholder rate until a SUPER_ADMIN sets a real one via /v1/admin/settings/rate_per_account. */
+  private static readonly DEFAULT_RATE_PER_ACCOUNT = 100000; // minor units (₹1,000) per clipper account/post
+
+  /**
+   * Minor units per clipper account/post — see docs/admin/ADMIN_PANEL.md
+   * "Settings". Priced per account rather than per view: how many views an
+   * account gets is never guaranteed (it depends entirely on that
+   * account's own reach), so promising a view count would be misleading —
+   * a brand is buying a fixed number of clipper slots, not a view count.
+   */
+  async getRatePerAccount(): Promise<number> {
+    const setting = await prisma.systemSetting.findUnique({ where: { key: "rate_per_account" } });
+    return typeof setting?.value === "number" ? setting.value : CampaignsService.DEFAULT_RATE_PER_ACCOUNT;
+  }
+
   async createDraft(brandUserId: string, dto: CreateCampaignDto) {
     const brandId = await this.getBrandId(brandUserId);
+
+    // maxParticipants doubles as "how many clipper slots am I buying" — the
+    // budget is derived from it at the current per-account rate rather
+    // than the brand typing a raw ₹ amount directly. creatorBudget stays
+    // settable directly too (kept for flexibility/back-compat) — the DTO
+    // just has to give one or the other.
+    let creatorBudget = dto.creatorBudget;
+    if (dto.maxParticipants != null) {
+      const ratePerAccount = await this.getRatePerAccount();
+      creatorBudget = dto.maxParticipants * ratePerAccount;
+    }
+    if (creatorBudget == null) {
+      throw new BadRequestException({ code: "BUDGET_REQUIRED", message: "Provide maxParticipants or creatorBudget." });
+    }
 
     return prisma.campaign.create({
       data: {
@@ -86,7 +115,8 @@ export class CampaignsService {
         type: dto.type,
         description: dto.description,
         objective: dto.objective,
-        creatorBudget: dto.creatorBudget,
+        creatorBudget,
+        durationDays: dto.durationDays,
         maxParticipants: dto.maxParticipants,
         platformFeeRate: 0, // locked in at funding time, not draft time — see CAMPAIGN_RULES.md
         status: "DRAFT",
