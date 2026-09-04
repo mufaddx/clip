@@ -10,6 +10,7 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
       { href: "/for-clippers", label: "For clippers" },
       { href: "/categories", label: "Categories" },
       { href: "/pricing", label: "Pricing" },
+      { href: "/payments", label: "Payments & payouts" },
     ],
   },
   {
@@ -25,9 +26,29 @@ const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
     links: [
       { href: "/privacy", label: "Privacy policy" },
       { href: "/terms", label: "Terms of service" },
+      { href: "/refund-policy", label: "Refund & cancellation policy" },
     ],
   },
 ];
+
+// A factual technology-attribution badge — never "Verified by Meta" or
+// "Meta Verified": this platform has standard Instagram API app review,
+// not a formal Meta business verification/endorsement, and claiming the
+// latter would misrepresent that relationship. Same reasoning as the
+// homepage badge in app/page.tsx — kept identical wording for consistency.
+function AttributionBadges() {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-slate-400">
+        <img src="/meta-icon.png" alt="Meta" className="h-3 w-3" />
+        Powered by Meta&apos;s Instagram API
+      </span>
+      <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-slate-400">
+        Payments secured by Razorpay
+      </span>
+    </div>
+  );
+}
 
 export function SiteFooter() {
   return (
@@ -57,9 +78,12 @@ export function SiteFooter() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row">
-          <p className="text-sm text-slate-500">© {new Date().getFullYear()} Vidlix. All rights reserved.</p>
-          <p className="text-sm text-slate-500">Made for brands and creators, everywhere.</p>
+        <div className="mt-12 flex flex-col items-center gap-6 border-t border-white/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
+          <AttributionBadges />
+          <div className="flex flex-col items-center gap-1 text-center sm:items-end sm:text-right">
+            <p className="text-sm text-slate-500">© {new Date().getFullYear()} Vidlix. All rights reserved.</p>
+            <p className="text-xs text-slate-600">Made for brands and creators, everywhere.</p>
+          </div>
         </div>
       </div>
     </footer>
