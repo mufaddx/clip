@@ -5,6 +5,7 @@ import { createHash, randomBytes, randomInt } from "crypto";
 import { prisma, type OtpPurpose } from "@clip/db";
 import type { SessionUser, LoginResponseDto, RegisterResponseDto } from "@clip/types";
 import { sendEmailNow } from "../../common/email";
+import { otpEmailTemplate } from "../../common/email-templates";
 import type { LoginDto } from "./dto/login.dto";
 import type { SignupDto } from "./dto/signup.dto";
 
@@ -249,8 +250,9 @@ export class AuthService {
     });
 
     const subject = purpose === "EMAIL_VERIFICATION" ? "Verify your Vidlix email" : "Reset your Vidlix password";
-    const html = `<p>Your Vidlix verification code is <strong style="font-size:20px">${code}</strong>.</p><p>It expires in 10 minutes. If you didn't request this, you can ignore this email.</p>`;
-    await sendEmailNow(email, subject, html);
+    const heading =
+      purpose === "EMAIL_VERIFICATION" ? "Enter this code to verify your email" : "Enter this code to reset your password";
+    await sendEmailNow(email, subject, otpEmailTemplate({ code, heading }));
   }
 
   /** Throws OTP_EXPIRED/OTP_INVALID, or deletes the row and returns on success. */

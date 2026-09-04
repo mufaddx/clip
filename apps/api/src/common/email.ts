@@ -21,7 +21,9 @@ export async function sendEmailNow(to: string, subject: string, html: string): P
 
   const resend = new Resend(env.EMAIL_PROVIDER_API_KEY);
   const { error } = await resend.emails.send({
-    from: env.EMAIL_FROM ?? "no-reply@vidlix.in",
+    // A display name here (rather than a bare address) is what makes Gmail
+    // etc. show "Vidlix" as the sender instead of the raw email address.
+    from: `Vidlix <${env.EMAIL_FROM ?? "no-reply@vidlix.in"}>`,
     to,
     subject,
     html,
