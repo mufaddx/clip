@@ -89,7 +89,7 @@ function RuleEditor() {
   return (
     <div>
       <PageHeader title="Qualified Performance Rules" description="Saving creates a new version — see docs/performance/PERFORMANCE_SCORING.md." />
-      <Card className="max-w-lg">
+      <Card className="mx-auto max-w-lg">
         <CardHeader><CardTitle>Objective: {rule ? `v${rule.version}` : ""}</CardTitle></CardHeader>
         <div className="flex flex-col gap-3">
           <Field label="Objective">

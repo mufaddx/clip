@@ -137,7 +137,7 @@ function RulesEditor() {
   return (
     <div>
       <PageHeader title="Referral Rules" description="Changes take effect for new referral evaluations immediately." />
-      <Card className="max-w-md">
+      <Card className="mx-auto max-w-md">
         <div className="flex flex-col gap-3">
           <Field label="Reward type">
             <Select value={rules.rewardType} onChange={(e) => setRules({ ...rules, rewardType: e.target.value as "FIXED" | "PERCENTAGE" })}>

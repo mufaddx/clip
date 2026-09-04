@@ -20,7 +20,7 @@ export default function ProfilePage() {
   return (
     <div>
       <PageHeader title="Profile" />
-      <Card className="max-w-md">
+      <Card className="mx-auto max-w-md">
         <div className="flex flex-col gap-3">
           <Field label="Email"><Input value={me?.email ?? ""} disabled /></Field>
           <Field label="Role"><Input value={me?.role ?? ""} disabled /></Field>

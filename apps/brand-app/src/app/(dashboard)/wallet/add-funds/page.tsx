@@ -39,7 +39,7 @@ export default function AddFundsPage() {
   return (
     <div>
       <PageHeader title="Add Funds" />
-      <Card className="max-w-sm">
+      <Card className="mx-auto max-w-sm">
         <form onSubmit={submit} className="flex flex-col gap-3">
           <Field label="Amount (₹)">
             <Input type="number" min="1" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} required />

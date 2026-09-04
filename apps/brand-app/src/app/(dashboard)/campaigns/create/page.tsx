@@ -164,7 +164,7 @@ export default function CreateCampaignPage() {
         ))}
       </div>
 
-      <Card className="max-w-2xl">
+      <Card className="mx-auto max-w-2xl">
         {step === 0 && (
           <div className="flex flex-col gap-3">
             <Field label="Campaign Name"><Input value={name} onChange={(e) => setName(e.target.value)} required /></Field>

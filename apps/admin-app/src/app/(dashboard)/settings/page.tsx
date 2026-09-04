@@ -34,7 +34,7 @@ export default function SettingsPage() {
   return (
     <div>
       <PageHeader title="Settings" />
-      <Card className="max-w-sm">
+      <Card className="mx-auto max-w-sm">
         <div className="flex flex-col gap-3">
           <Field
             label="Rate per clipper account/post (₹)"

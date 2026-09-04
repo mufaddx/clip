@@ -18,6 +18,12 @@ async function main() {
     "Finance",
     "Comedy",
     "Lifestyle",
+    "Political",
+    "Health",
+    "News",
+    "Sports",
+    "Education",
+    "Music",
   ];
 
   for (const name of categories) {

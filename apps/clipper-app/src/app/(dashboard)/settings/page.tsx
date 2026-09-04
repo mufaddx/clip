@@ -17,7 +17,7 @@ export default function SettingsPage() {
   return (
     <div>
       <PageHeader title="Settings" />
-      <Card className="max-w-md">
+      <Card className="mx-auto max-w-md">
         <p className="mb-4 text-sm text-slate-500">
           Notification preferences and account settings expand here in a later pass.
         </p>
