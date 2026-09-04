@@ -45,6 +45,11 @@ const CAMPAIGN_STATUS_MAP: Record<string, { label: string; variant: BadgeVariant
   REJECTED: { label: "Rejected", variant: "danger" },
   CANCELLED: { label: "Cancelled", variant: "danger" },
   EXPIRED: { label: "Expired", variant: "danger" },
+  // Reel verification statuses (docs/campaigns/REEL_VERIFICATION.md) share
+  // this same badge component wherever a reel's status is shown.
+  PENDING_VERIFICATION: { label: "Verifying…", variant: "warning" },
+  VERIFIED: { label: "Verified", variant: "success" },
+  MANUAL_REVIEW: { label: "Needs Review", variant: "warning" },
 };
 
 export function CampaignStatusBadge({ status }: { status: string }) {

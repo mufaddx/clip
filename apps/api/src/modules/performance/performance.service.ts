@@ -132,13 +132,32 @@ export class PerformanceService {
       data: { reelId, ruleId: rule.id, snapshotId: snapshot.id, score },
     });
 
-    // Simplified payout model: this reel earns `score` (0..1) of the
-    // campaign's remaining creator budget, capped so cumulative spend never
-    // exceeds creatorBudget. Real Earnings Worker semantics (PENDING window,
-    // per-campaign payout curve config) land with the background workers —
-    // see docs/finance/CREATOR_EARNINGS.md.
+    // Pay a reel's earning exactly ONCE, the first time it has a passing
+    // score after verification — never again on later snapshots. The
+    // Metrics Sync Worker records a new snapshot (and calls this) every
+    // hour for as long as a campaign stays live, so without this guard a
+    // single reel would be paid again on every sync cycle until it drained
+    // the entire campaign budget by itself. A prior PerformanceCalculation
+    // row for this reel (there's always at least this one we just made) is
+    // proof an earlier pass already ran.
+    const priorCalculation = await prisma.performanceCalculation.findFirst({
+      where: { reelId, id: { not: calculation.id } },
+    });
+    const alreadyPaid = priorCalculation !== null;
+
+    // Per-account amount: recovers the exact rate the brand was quoted at
+    // funding time (creatorBudget was itself derived as
+    // maxParticipants × ratePerAccount — see CampaignsService.createDraft),
+    // rather than an arbitrary fraction of the whole budget. Campaigns
+    // funded with a direct creatorBudget and no maxParticipants (the
+    // legacy/manual path the DTO still allows) fall back to a score-share
+    // of the remaining budget, since there's no "per slot" rate to recover.
+    const MIN_QUALIFYING_SCORE = 0.5;
     const remaining = campaign.creatorBudget - campaign.spentAmount;
-    const amount = Math.min(Math.round(campaign.creatorBudget * score * 0.1), remaining);
+    const perAccountAmount = campaign.maxParticipants
+      ? Math.floor(campaign.creatorBudget / campaign.maxParticipants)
+      : Math.round(campaign.creatorBudget * score * 0.1);
+    const amount = !alreadyPaid && score >= MIN_QUALIFYING_SCORE ? Math.min(perAccountAmount, Math.max(remaining, 0)) : 0;
 
     if (amount > 0) {
       await this.walletService.postEarning(

@@ -13,6 +13,7 @@ import { createRedisConnection } from "./connection";
 export const QUEUE_NAMES = {
   instagramSync: "instagram-sync",
   reelDetection: "reel-detection",
+  reelVerification: "reel-verification",
   metricsSync: "metrics-sync",
   earnings: "earnings",
   notifications: "notifications",
@@ -23,6 +24,11 @@ const connection = createRedisConnection();
 
 export const instagramSyncQueue = new Queue(QUEUE_NAMES.instagramSync, { connection });
 export const reelDetectionQueue = new Queue(QUEUE_NAMES.reelDetection, { connection });
+// Verification does a real Graph API ownership check plus a content-hash
+// download/compare — genuine external work, so submission enqueues it here
+// instead of doing it inline on the request (see reels.service.ts). A reel
+// sits at PENDING_VERIFICATION until this queue's worker resolves it.
+export const reelVerificationQueue = new Queue(QUEUE_NAMES.reelVerification, { connection });
 export const metricsSyncQueue = new Queue(QUEUE_NAMES.metricsSync, { connection });
 export const earningsQueue = new Queue(QUEUE_NAMES.earnings, { connection });
 export const notificationsQueue = new Queue(QUEUE_NAMES.notifications, { connection });

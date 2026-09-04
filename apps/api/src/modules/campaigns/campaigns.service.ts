@@ -91,6 +91,29 @@ export class CampaignsService {
     return typeof setting?.value === "number" ? setting.value : CampaignsService.DEFAULT_RATE_PER_ACCOUNT;
   }
 
+  /**
+   * How many clippers could actually accept a campaign targeting the given
+   * categories right now — surfaced in the create-campaign wizard next to
+   * "number of clipper accounts" so a brand isn't sizing a campaign against
+   * inventory that doesn't exist. Mirrors eligibleCampaignsWhere()'s
+   * category rule from the other direction: a creator with no categories
+   * set is open to any campaign; a creator with categories set needs at
+   * least one to overlap the campaign's targeting. Same ACTIVE-user,
+   * not-risk-flagged, healthy-Instagram-account bar as actual eligibility.
+   */
+  async getEligibleCreatorCount(categoryIds: string[]): Promise<number> {
+    return prisma.creatorProfile.count({
+      where: {
+        user: { status: "ACTIVE" },
+        riskFlagged: false,
+        instagramAccounts: { some: { connectionHealth: "HEALTHY" } },
+        ...(categoryIds.length > 0
+          ? { OR: [{ categories: { none: {} } }, { categories: { some: { categoryId: { in: categoryIds } } } }] }
+          : {}),
+      },
+    });
+  }
+
   async createDraft(brandUserId: string, dto: CreateCampaignDto) {
     const brandId = await this.getBrandId(brandUserId);
 

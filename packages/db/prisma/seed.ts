@@ -76,7 +76,7 @@ async function main() {
   await prisma.systemSetting.upsert({
     where: { key: "earnings_settlement_window_days" },
     update: {},
-    create: { key: "earnings_settlement_window_days", value: 7 },
+    create: { key: "earnings_settlement_window_days", value: 15 }, // 15-day holding period per the product spec
   });
 
   // Per-account/post rate (minor units) a brand's campaign budget is

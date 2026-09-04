@@ -45,6 +45,17 @@ export class CampaignsController {
     return { ratePerAccount: await this.campaignsService.getRatePerAccount() };
   }
 
+  // How many eligible clippers exist for a category selection right now —
+  // shown next to "number of clipper accounts" in the wizard so a brand
+  // isn't sizing a campaign against inventory that doesn't exist. Declared
+  // before the ":id" wildcard below, same as account-rate above.
+  @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
+  @Get("eligible-count")
+  async eligibleCount(@Query("categoryIds") categoryIds?: string) {
+    const ids = categoryIds ? categoryIds.split(",").filter(Boolean) : [];
+    return { eligibleCount: await this.campaignsService.getEligibleCreatorCount(ids) };
+  }
+
   @Roles("BRAND_OWNER", "BRAND_TEAM_MEMBER")
   @RequirePermission("CAMPAIGNS_CREATE")
   @Post()

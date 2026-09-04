@@ -12,9 +12,10 @@ import { startNotificationWorker } from "./workers/notification.worker";
 import { startInstagramSyncWorker, enqueueExpiringAccountRefreshes } from "./workers/instagram-sync.worker";
 import { startReferralRewardWorker } from "./workers/referral-reward.worker";
 import { startReelDetectionWorker } from "./workers/reel-detection.worker";
+import { startReelVerificationWorker } from "./workers/reel-verification.worker";
 import { startMetricsSyncWorker } from "./workers/metrics-sync.worker";
 import { startEarningsWorker } from "./workers/earnings.worker";
-import { referralRewardsQueue, reelDetectionQueue, metricsSyncQueue, earningsQueue } from "./workers/queues";
+import { referralRewardsQueue, reelDetectionQueue, reelVerificationQueue, metricsSyncQueue, earningsQueue } from "./workers/queues";
 
 /**
  * Background worker process entrypoint — deployed and scaled independently
@@ -44,6 +45,7 @@ async function bootstrapWorkers() {
     startInstagramSyncWorker(instagramService),
     startReferralRewardWorker(),
     startReelDetectionWorker(instagramService, reelsService),
+    startReelVerificationWorker(reelsService),
     startMetricsSyncWorker(instagramService, performanceService),
     startEarningsWorker(walletService),
   ];
@@ -71,11 +73,17 @@ async function bootstrapWorkers() {
     enqueueExpiringAccountRefreshes().catch((err) => console.error("enqueueExpiringAccountRefreshes failed", err));
   }, 60 * 60 * 1000); // hourly
 
-  console.log("Vidlix worker process started: notifications, instagram-sync, reel-detection, metrics-sync, earnings, referral-rewards.");
+  console.log("Vidlix worker process started: notifications, instagram-sync, reel-detection, reel-verification, metrics-sync, earnings, referral-rewards.");
 
   const shutdown = async () => {
     await Promise.all(workers.map((w) => w.close()));
-    await Promise.all([referralRewardsQueue.close(), reelDetectionQueue.close(), metricsSyncQueue.close(), earningsQueue.close()]);
+    await Promise.all([
+      referralRewardsQueue.close(),
+      reelDetectionQueue.close(),
+      reelVerificationQueue.close(),
+      metricsSyncQueue.close(),
+      earningsQueue.close(),
+    ]);
     await appContext.close();
     process.exit(0);
   };

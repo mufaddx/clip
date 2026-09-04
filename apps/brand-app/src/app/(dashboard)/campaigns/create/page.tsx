@@ -48,6 +48,10 @@ export default function CreateCampaignPage() {
   // Minor units per clipper account/post — admin-set, see
   // /v1/campaigns/account-rate.
   const [ratePerAccount, setRatePerAccount] = useState<number | null>(null);
+  // How many clippers actually match the current targeting right now — see
+  // /v1/campaigns/eligible-count. Re-fetched whenever the category
+  // selection changes so this is a live number, not a one-time load.
+  const [eligibleCount, setEligibleCount] = useState<number | null>(null);
 
   useEffect(() => {
     apiFetchClient<CategoryOption[]>("/v1/categories")
@@ -57,6 +61,13 @@ export default function CreateCampaignPage() {
       .then((r) => setRatePerAccount(r.ratePerAccount))
       .catch(() => setRatePerAccount(null));
   }, []);
+
+  useEffect(() => {
+    const qs = selectedCategoryIds.length > 0 ? `?categoryIds=${selectedCategoryIds.join(",")}` : "";
+    apiFetchClient<{ eligibleCount: number }>(`/v1/campaigns/eligible-count${qs}`)
+      .then((r) => setEligibleCount(r.eligibleCount))
+      .catch(() => setEligibleCount(null)); // non-fatal — the wizard still works without this number
+  }, [selectedCategoryIds]);
 
   function toggleCategory(id: string) {
     setSelectedCategoryIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
@@ -243,6 +254,11 @@ export default function CreateCampaignPage() {
                 )}
               </div>
             </Field>
+            <p className="-mt-1 text-sm text-slate-500">
+              {eligibleCount === null
+                ? "Checking eligible clippers…"
+                : `${eligibleCount.toLocaleString()} clipper${eligibleCount === 1 ? "" : "s"} currently match${eligibleCount === 1 ? "es" : ""} this targeting.`}
+            </p>
             <Field label="Minimum followers"><Input type="number" value={minFollowers} onChange={(e) => setMinFollowers(e.target.value)} /></Field>
             <Field label="Minimum trust score (0-100)"><Input type="number" value={minTrustScore} onChange={(e) => setMinTrustScore(e.target.value)} /></Field>
           </div>
@@ -282,6 +298,14 @@ export default function CreateCampaignPage() {
               <p className="mt-2 font-semibold text-ink">Estimated platform fee (15%): {formatCurrency(estimatedFee)}</p>
               <p className="font-semibold text-ink">Estimated total campaign budget: {formatCurrency(estimatedTotal)}</p>
             </div>
+
+            {eligibleCount !== null && accounts > eligibleCount ? (
+              <p className="text-sm text-warning-700">
+                Only {eligibleCount.toLocaleString()} clipper{eligibleCount === 1 ? "" : "s"} currently match your
+                targeting — you can still fund {accounts} slots, but some may go unfilled until more clippers join or
+                connect a matching account.
+              </p>
+            ) : null}
           </div>
         )}
 
