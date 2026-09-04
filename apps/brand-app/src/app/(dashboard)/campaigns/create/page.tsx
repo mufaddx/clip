@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, Field, Input, Select, Textarea, PageHeader } from "@clip/ui";
+import { Button, Card, Field, Input, Textarea, PageHeader, cn } from "@clip/ui";
 import { formatCurrency } from "@clip/utilities";
 import { apiFetchClient } from "../../../../lib/api-client";
 
@@ -11,9 +11,6 @@ interface CategoryOption {
   name: string;
 }
 
-// The backend's `type` field is a free-form string (see CreateCampaignDto) —
-// this list is just a curated set of common campaign types for the picker.
-const CAMPAIGN_TYPES = ["Product Launch", "Brand Awareness", "Sale / Promotion", "Event", "UGC / Testimonial", "Other"];
 const STEPS = ["Basic Information", "Content", "Creator Requirements", "Performance Targets", "Budget", "Review"];
 
 /**
@@ -31,7 +28,6 @@ export default function CreateCampaignPage() {
   const [busy, setBusy] = useState(false);
 
   const [name, setName] = useState("");
-  const [type, setType] = useState("");
   const [description, setDescription] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [uploadedFileName, setUploadedFileName] = useState("");
@@ -118,7 +114,6 @@ export default function CreateCampaignPage() {
         method: "POST",
         body: JSON.stringify({
           name,
-          type: type || undefined,
           description: description || undefined,
           maxParticipants: accounts || undefined,
           durationDays: durationDays ? Number(durationDays) : undefined,
@@ -156,11 +151,35 @@ export default function CreateCampaignPage() {
     <div>
       <PageHeader title="Create Campaign" />
 
-      <div className="mb-6 flex gap-2 text-xs font-medium text-slate-400">
+      <div className="mx-auto mb-8 flex max-w-2xl items-start">
         {STEPS.map((s, i) => (
-          <span key={s} className={i === step ? "text-brand-700" : ""}>
-            {i + 1}. {s}{i < STEPS.length - 1 ? " → " : ""}
-          </span>
+          <div key={s} className={cn("flex items-center", i < STEPS.length - 1 && "flex-1")}>
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className={cn(
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold",
+                  i < step
+                    ? "bg-brand-600 text-white"
+                    : i === step
+                      ? "border-2 border-brand-600 text-brand-700"
+                      : "border border-slate-200 text-slate-400"
+                )}
+              >
+                {i < step ? "✓" : i + 1}
+              </div>
+              <span
+                className={cn(
+                  "max-w-[80px] text-center text-[11px] font-medium leading-tight",
+                  i === step ? "text-brand-700" : "text-slate-400"
+                )}
+              >
+                {s}
+              </span>
+            </div>
+            {i < STEPS.length - 1 ? (
+              <div className={cn("mx-2 mt-4 h-0.5 flex-1", i < step ? "bg-brand-600" : "bg-slate-200")} />
+            ) : null}
+          </div>
         ))}
       </div>
 
@@ -168,16 +187,6 @@ export default function CreateCampaignPage() {
         {step === 0 && (
           <div className="flex flex-col gap-3">
             <Field label="Campaign Name"><Input value={name} onChange={(e) => setName(e.target.value)} required /></Field>
-            <Field label="Campaign Type">
-              <Select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="">Select a type…</option>
-                {CAMPAIGN_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </Select>
-            </Field>
             <Field label="Description"><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
           </div>
         )}
