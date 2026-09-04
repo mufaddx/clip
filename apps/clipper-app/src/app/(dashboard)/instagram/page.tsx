@@ -91,9 +91,19 @@ function InstagramPageContent() {
                   </div>
                   <Badge variant={a.connectionHealth === "HEALTHY" ? "success" : "danger"}>{a.connectionHealth}</Badge>
                 </div>
-                <Button variant="destructive" size="sm" className="mt-4" onClick={() => disconnect(a.id)}>
-                  Disconnect
-                </Button>
+                {a.connectionHealth !== "HEALTHY" ? (
+                  <p className="mt-3 text-sm text-danger-600">
+                    Vidlix can&apos;t reliably sync this account right now — reconnect it to keep campaigns and earnings tracking.
+                  </p>
+                ) : null}
+                <div className="mt-4 flex gap-2">
+                  {a.connectionHealth !== "HEALTHY" ? (
+                    <Button size="sm" onClick={connect}>Reconnect</Button>
+                  ) : null}
+                  <Button variant="destructive" size="sm" onClick={() => disconnect(a.id)}>
+                    Disconnect
+                  </Button>
+                </div>
               </Card>
               <AccountProfile
                 accountId={a.id}

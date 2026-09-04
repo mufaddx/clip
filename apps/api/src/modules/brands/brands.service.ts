@@ -12,7 +12,12 @@ export class BrandsService {
   constructor(private readonly authService: AuthService) {}
 
   private async getOwnBrand(ownerUserId: string) {
-    const brand = await prisma.brandProfile.findUnique({ where: { userId: ownerUserId } });
+    // categories included so the profile edit form can pre-select what's
+    // already set, rather than always starting from an empty picker.
+    const brand = await prisma.brandProfile.findUnique({
+      where: { userId: ownerUserId },
+      include: { categories: { include: { category: true } } },
+    });
     if (!brand) throw new ForbiddenException({ code: "NOT_A_BRAND", message: "This account has no brand profile." });
     return brand;
   }

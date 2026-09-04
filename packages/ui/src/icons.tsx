@@ -179,3 +179,19 @@ export const IconAlertTriangle = base(
     <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none" />
   </>
 );
+
+export const IconCopy = base(
+  <>
+    <rect x="9" y="9" width="12" height="12" rx="2" />
+    <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+  </>
+);
+
+export const IconCheck = base(<path d="M5 12.5l4.5 4.5L19 7" />);
+
+export const IconRefresh = base(
+  <>
+    <path d="M20 11a8 8 0 0 0-14.6-4.6M4 13a8 8 0 0 0 14.6 4.6" />
+    <path d="M5 3v4h4M19 21v-4h-4" />
+  </>
+);

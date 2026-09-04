@@ -10,7 +10,12 @@ import { prisma } from "@clip/db";
 @Injectable()
 export class ClippersService {
   async getOwnProfile(userId: string) {
-    const creator = await prisma.creatorProfile.findUnique({ where: { userId } });
+    // categories included so the profile edit form can pre-select what's
+    // already set, rather than always starting from an empty picker.
+    const creator = await prisma.creatorProfile.findUnique({
+      where: { userId },
+      include: { categories: { include: { category: true } } },
+    });
     if (!creator) throw new ForbiddenException({ code: "NOT_A_CLIPPER", message: "This account has no creator profile." });
     return creator;
   }
