@@ -335,11 +335,33 @@ export class CampaignsService {
 
     if (creator.riskFlagged) return null; // excluded from all recommendations until cleared — see docs/performance/QUALIFIED_PERFORMANCE.md
 
+    // creator.categories was fetched here but never actually applied —
+    // docs/campaigns/CREATOR_MATCHING.md "Eligibility gate" lists category
+    // overlap as the *first* hard filter: a campaign with no category
+    // requirements is open to everyone, otherwise the clipper's own
+    // account categories must overlap the campaign's target categories.
+    // An empty `in: []` correctly matches nothing, so a clipper with no
+    // categories set naturally only sees untargeted campaigns — no
+    // special-casing needed.
+    const creatorCategoryIds = creator.categories.map((c) => c.categoryId);
+
     return {
       status: "LIVE" as const,
-      OR: [
-        { requirements: { is: { minTrustScore: null } } },
-        { requirements: { is: { minTrustScore: { lte: creator.trustScore } } } },
+      AND: [
+        {
+          OR: [
+            { requirements: { is: null } },
+            { requirements: { is: { categories: { none: {} } } } },
+            { requirements: { is: { categories: { some: { id: { in: creatorCategoryIds } } } } } },
+          ],
+        },
+        {
+          OR: [
+            { requirements: { is: null } },
+            { requirements: { is: { minTrustScore: null } } },
+            { requirements: { is: { minTrustScore: { lte: creator.trustScore } } } },
+          ],
+        },
       ],
     };
   }
@@ -348,7 +370,21 @@ export class CampaignsService {
     const creatorId = await this.getCreatorId(clipperUserId);
     const where = await this.eligibleCampaignsWhere(creatorId);
     if (!where) return [];
-    return prisma.campaign.findMany({ where, include: { requirements: true }, orderBy: { liveAt: "desc" } });
+
+    const campaigns = await prisma.campaign.findMany({
+      where,
+      include: { requirements: true, _count: { select: { creators: true } } },
+      orderBy: { liveAt: "desc" },
+    });
+
+    // max_participants is a hard eligibility gate too (see
+    // docs/campaigns/CREATOR_MATCHING.md "Eligibility gate") but can't be
+    // expressed as a declarative Prisma `where` — it's comparing a
+    // relation count against another scalar column on the same row — so
+    // it's filtered here instead of in eligibleCampaignsWhere().
+    return campaigns
+      .filter((c) => c.maxParticipants == null || c._count.creators < c.maxParticipants)
+      .map(({ _count, ...campaign }) => campaign);
   }
 
   async accept(clipperUserId: string, campaignId: string, instagramAccountId: string) {

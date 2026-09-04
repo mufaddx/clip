@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Field, Input, Select, Textarea, PageHeader } from "@clip/ui";
 import { formatCurrency } from "@clip/utilities";
 import { apiFetchClient } from "../../../../lib/api-client";
+
+interface CategoryOption {
+  id: string;
+  name: string;
+}
 
 const OBJECTIVES = ["DISTRIBUTION", "VIEWS", "REACH", "ENGAGEMENT", "QUALITY_PERFORMANCE"] as const;
 const DEFAULT_OBJECTIVE: (typeof OBJECTIVES)[number] = "VIEWS";
@@ -42,6 +47,18 @@ export default function CreateCampaignPage() {
   const [minTrustScore, setMinTrustScore] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
   const [creatorBudget, setCreatorBudget] = useState("");
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    apiFetchClient<CategoryOption[]>("/v1/categories")
+      .then(setCategories)
+      .catch(() => setCategories([])); // non-fatal — the picker just shows empty if this fails
+  }, []);
+
+  function toggleCategory(id: string) {
+    setSelectedCategoryIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
 
   const estimatedFee = Math.round(Number(creatorBudget || 0) * 100 * 0.15); // 15% default, real rate locked at funding time
   const estimatedTotal = Math.round(Number(creatorBudget || 0) * 100) + estimatedFee;
@@ -96,6 +113,7 @@ export default function CreateCampaignPage() {
           requirements: {
             minFollowers: minFollowers ? Number(minFollowers) : undefined,
             minTrustScore: minTrustScore ? Number(minTrustScore) : undefined,
+            categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
           },
           assets: mediaUrl
             ? [
@@ -175,6 +193,34 @@ export default function CreateCampaignPage() {
 
         {step === 2 && (
           <div className="flex flex-col gap-3">
+            <Field
+              label="Content categories"
+              helperText="Only clippers whose account matches one of these categories will see this campaign — leave empty to open it to everyone."
+            >
+              <div className="flex flex-wrap gap-2">
+                {categories.length === 0 ? (
+                  <p className="text-sm text-slate-400">Loading categories…</p>
+                ) : (
+                  categories.map((c) => {
+                    const active = selectedCategoryIds.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => toggleCategory(c.id)}
+                        className={
+                          active
+                            ? "rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white"
+                            : "rounded-full border border-slate-200 px-4 py-1.5 text-sm text-slate-600 hover:border-slate-300"
+                        }
+                      >
+                        {c.name}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </Field>
             <Field label="Minimum followers"><Input type="number" value={minFollowers} onChange={(e) => setMinFollowers(e.target.value)} /></Field>
             <Field label="Minimum trust score (0-100)"><Input type="number" value={minTrustScore} onChange={(e) => setMinTrustScore(e.target.value)} /></Field>
             <Field label="Maximum participants"><Input type="number" value={maxParticipants} onChange={(e) => setMaxParticipants(e.target.value)} /></Field>
@@ -202,6 +248,12 @@ export default function CreateCampaignPage() {
           <div className="space-y-2 text-sm">
             <p><strong>Name:</strong> {name}</p>
             <p><strong>Objective:</strong> {objective.replace("_", " ")}</p>
+            <p>
+              <strong>Categories:</strong>{" "}
+              {selectedCategoryIds.length > 0
+                ? categories.filter((c) => selectedCategoryIds.includes(c.id)).map((c) => c.name).join(", ")
+                : "Open to all clippers"}
+            </p>
             <p><strong>Creator budget:</strong> {formatCurrency(Math.round(Number(creatorBudget || 0) * 100))}</p>
             <p><strong>Estimated total:</strong> {formatCurrency(estimatedTotal)}</p>
             <p><strong>Max participants:</strong> {maxParticipants || "Unlimited"}</p>
