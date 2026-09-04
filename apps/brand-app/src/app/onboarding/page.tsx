@@ -53,6 +53,12 @@ export default function BrandOnboardingPage() {
         body: JSON.stringify({ companyName, website, industry, categoryIds: selectedCategoryIds }),
       });
       await apiFetchClient("/v1/users/me/onboarding-status", { method: "PATCH", body: JSON.stringify({ step: "review", complete: true }) });
+      // The access token issued at login still has onboardingComplete:false
+      // baked in — updating the DB doesn't retroactively change an already-
+      // issued JWT. Without this, the middleware reads the stale token and
+      // bounces straight back to /onboarding. /v1/auth/refresh re-reads the
+      // user from the DB and issues a fresh token with the new value.
+      await apiFetchClient("/v1/auth/refresh", { method: "POST" });
       window.location.href = "/dashboard";
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to complete onboarding.");
