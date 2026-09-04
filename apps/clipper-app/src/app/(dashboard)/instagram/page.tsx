@@ -13,6 +13,9 @@ function InstagramPageContent() {
   const router = useRouter();
   const [accounts, setAccounts] = useState<InstagramAccount[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Reported up by each AccountProfile once its stats load — the avatar
+  // sits in the account header above, not inside AccountProfile itself.
+  const [avatars, setAvatars] = useState<Record<string, string>>({});
   // Set by the OAuth callback redirect (?connected=1|0) — see
   // InstagramController.oauthCallback. Cleared from the URL after reading
   // so refreshing the page doesn't keep re-showing it.
@@ -72,9 +75,19 @@ function InstagramPageContent() {
             <div key={a.id} className="flex flex-col gap-4">
               <Card>
                 <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-ink">@{a.username}</p>
-                    <p className="text-sm text-slate-500">{a.accountType ?? "—"}</p>
+                  <div className="flex items-center gap-3">
+                    {avatars[a.id] ? (
+                      // Instagram's CDN URLs are short-lived and per-account —
+                      // not worth routing through next/image's remote-pattern config.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={avatars[a.id]} alt={a.username} className="h-12 w-12 rounded-full object-cover" />
+                    ) : (
+                      <div className="h-12 w-12 rounded-full bg-slate-100" />
+                    )}
+                    <div>
+                      <p className="font-semibold text-ink">@{a.username}</p>
+                      <p className="text-sm text-slate-500">{a.accountType ?? "—"}</p>
+                    </div>
                   </div>
                   <Badge variant={a.connectionHealth === "HEALTHY" ? "success" : "danger"}>{a.connectionHealth}</Badge>
                 </div>
@@ -82,7 +95,10 @@ function InstagramPageContent() {
                   Disconnect
                 </Button>
               </Card>
-              <AccountProfile accountId={a.id} />
+              <AccountProfile
+                accountId={a.id}
+                onAvatar={(url) => setAvatars((prev) => (prev[a.id] === url ? prev : { ...prev, [a.id]: url }))}
+              />
             </div>
           ))}
         </div>
@@ -96,7 +112,7 @@ function InstagramPageContent() {
 // InstagramService.getAccountStats/listRecentMediaForCreator. Kept as its
 // own component so one account's profile fetch failing doesn't blank out
 // the account list above it.
-function AccountProfile({ accountId }: { accountId: string }) {
+function AccountProfile({ accountId, onAvatar }: { accountId: string; onAvatar: (url: string) => void }) {
   const [stats, setStats] = useState<InstagramProfileStats | null>(null);
   const [media, setMedia] = useState<InstagramMediaItem[] | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -106,7 +122,10 @@ function AccountProfile({ accountId }: { accountId: string }) {
     setMedia(null);
     setProfileError(null);
     apiFetchClient<InstagramProfileStats>(`/v1/instagram/accounts/${accountId}/profile`)
-      .then(setStats)
+      .then((s) => {
+        setStats(s);
+        if (s.profile_picture_url) onAvatar(s.profile_picture_url);
+      })
       .catch((e) => setProfileError(e instanceof Error ? e.message : "Couldn't load profile stats."));
     apiFetchClient<InstagramMediaItem[]>(`/v1/instagram/accounts/${accountId}/media`)
       .then(setMedia)
