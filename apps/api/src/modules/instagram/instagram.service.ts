@@ -53,16 +53,21 @@ export class InstagramService {
 
     const shortLived = await this.exchangeCodeForShortLivedToken(code, env);
     const longLived = await this.exchangeForLongLivedToken(shortLived.access_token, env);
-    const profile = await this.fetchProfile(longLived.access_token, shortLived.user_id, env);
+    const profile = await this.fetchProfile(longLived.access_token, env);
 
     const expiresAt = new Date(Date.now() + longLived.expires_in * 1000);
     const encrypted = encryptToken(longLived.access_token, env.TOKEN_ENCRYPTION_KEY!);
 
+    // profile.id (from the /me fetch above) is the canonical node id for
+    // this graph — later calls like /{platformUserId}/media use the same
+    // node path style, so this has to be that id, not the short-lived
+    // token exchange's own user_id (which is a different ID namespace and
+    // isn't a valid node under graph.instagram.com).
     const account = await prisma.instagramAccount.upsert({
-      where: { platformUserId: String(shortLived.user_id) },
+      where: { platformUserId: profile.id },
       create: {
         creatorId: creator.id,
-        platformUserId: String(shortLived.user_id),
+        platformUserId: profile.id,
         username: profile.username,
         accountType: profile.account_type,
         connectionHealth: "HEALTHY",
@@ -98,7 +103,9 @@ export class InstagramService {
 
     const res = await fetch("https://api.instagram.com/oauth/access_token", { method: "POST", body });
     if (!res.ok) {
-      throw new BadRequestException({ code: "INSTAGRAM_OAUTH_FAILED", message: "Failed to exchange authorization code." });
+      const detail = await res.text().catch(() => "");
+      console.error("Instagram code exchange failed:", res.status, detail);
+      throw new BadRequestException({ code: "INSTAGRAM_OAUTH_FAILED", message: "Failed to exchange authorization code.", details: { detail } });
     }
     return res.json() as Promise<{ access_token: string; user_id: number }>;
   }
@@ -111,19 +118,28 @@ export class InstagramService {
 
     const res = await fetch(url);
     if (!res.ok) {
-      throw new BadRequestException({ code: "INSTAGRAM_TOKEN_EXCHANGE_FAILED", message: "Failed to obtain a long-lived token." });
+      const detail = await res.text().catch(() => "");
+      console.error("Instagram long-lived token exchange failed:", res.status, detail);
+      throw new BadRequestException({ code: "INSTAGRAM_TOKEN_EXCHANGE_FAILED", message: "Failed to obtain a long-lived token.", details: { detail } });
     }
     return res.json() as Promise<{ access_token: string; token_type: string; expires_in: number }>;
   }
 
-  private async fetchProfile(accessToken: string, userId: number, env: ReturnType<typeof getEnv>) {
-    const url = new URL(`https://graph.instagram.com/${env.META_GRAPH_API_VERSION}/${userId}`);
+  // Note: graph.instagram.com (the standalone "Instagram API with Instagram
+  // Login" graph, as opposed to graph.facebook.com) resolves the current
+  // token's own account via the /me alias — the numeric user_id from the
+  // token exchange isn't a valid node path here, unlike the classic
+  // Facebook Graph API pattern this was originally modeled on.
+  private async fetchProfile(accessToken: string, env: ReturnType<typeof getEnv>) {
+    const url = new URL(`https://graph.instagram.com/${env.META_GRAPH_API_VERSION}/me`);
     url.searchParams.set("fields", "id,username,account_type");
     url.searchParams.set("access_token", accessToken);
 
     const res = await fetch(url);
     if (!res.ok) {
-      throw new BadRequestException({ code: "INSTAGRAM_PROFILE_FETCH_FAILED", message: "Failed to fetch the connected profile." });
+      const detail = await res.text().catch(() => "");
+      console.error("Instagram profile fetch failed:", res.status, detail);
+      throw new BadRequestException({ code: "INSTAGRAM_PROFILE_FETCH_FAILED", message: "Failed to fetch the connected profile.", details: { detail } });
     }
     return res.json() as Promise<{ id: string; username: string; account_type: string }>;
   }
