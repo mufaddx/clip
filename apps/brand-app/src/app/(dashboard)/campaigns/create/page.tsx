@@ -195,7 +195,13 @@ export default function CreateCampaignPage() {
           <div className="flex flex-col gap-3">
             <Field
               label="Campaign creative (image or video)"
-              helperText={uploading ? "Uploading…" : mediaUrl ? `Uploaded: ${uploadedFileName}` : "This is what clippers will see and be asked to publish."}
+              helperText={
+                uploading
+                  ? "Uploading…"
+                  : mediaUrl
+                    ? `Uploaded: ${uploadedFileName}`
+                    : "Required — this is what clippers will see and be asked to publish."
+              }
               error={uploadError ?? undefined}
             >
               <Input type="file" accept="image/*,video/*" onChange={handleFileChange} disabled={uploading} />
@@ -302,7 +308,7 @@ export default function CreateCampaignPage() {
           {step < STEPS.length - 1 ? (
             <Button
               onClick={() => setStep((s) => s + 1)}
-              disabled={(step === 0 && !name) || (step === 1 && uploading) || (step === 4 && !accounts)}
+              disabled={(step === 0 && !name) || (step === 1 && (uploading || !mediaUrl)) || (step === 4 && !accounts)}
             >
               Next
             </Button>
