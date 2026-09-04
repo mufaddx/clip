@@ -164,10 +164,32 @@ export class AuthService {
     return { user: sessionUser, redirectTo, accessToken, refreshToken };
   }
 
+  /**
+   * A single browser can trigger two independent refreshes for the same
+   * expired access token almost simultaneously — the Next.js edge
+   * middleware's silent refresh on navigation, and apiFetchClient's own
+   * 401-retry for an idle tab's in-flight request — both reading the same
+   * refresh-token cookie value. Since refresh tokens are single-use, the
+   * loser of that race would otherwise get REFRESH_TOKEN_REUSED and, on
+   * the middleware side, a hard bounce to /login despite the session
+   * actually being fine. GRACE_WINDOW_MS tolerates a refresh token that
+   * was JUST rotated away by the winner of that race — reissuing a fresh
+   * session instead of failing — while a token revoked longer ago (a
+   * genuinely stale or replayed one) still fails as before.
+   */
+  private static readonly REFRESH_GRACE_WINDOW_MS = 15_000;
+
   async refresh(refreshToken: string): Promise<SessionTokens> {
     const tokenHash = hashToken(refreshToken);
     const stored = await prisma.refreshToken.findFirst({
-      where: { tokenHash, revokedAt: null, expiresAt: { gt: new Date() } },
+      where: {
+        tokenHash,
+        expiresAt: { gt: new Date() },
+        OR: [
+          { revokedAt: null },
+          { revokedAt: { gt: new Date(Date.now() - AuthService.REFRESH_GRACE_WINDOW_MS) } },
+        ],
+      },
       include: { user: true },
     });
 
@@ -175,8 +197,11 @@ export class AuthService {
       throw new UnauthorizedException({ code: "TOKEN_EXPIRED", message: "Session expired, please log in again." });
     }
 
-    // Rotate: revoke the used refresh token and issue a new pair.
-    await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
+    // Rotate only if this token hasn't already been revoked by a
+    // concurrent call that won the race above.
+    if (!stored.revokedAt) {
+      await prisma.refreshToken.update({ where: { id: stored.id }, data: { revokedAt: new Date() } });
+    }
 
     return this.issueSession(stored.user.id, stored.user.email, stored.user.role, stored.user.onboardingComplete);
   }
