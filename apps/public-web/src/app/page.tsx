@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { IconInstagram, IconMegaphone } from "../components/icons";
+import { HeroParticles } from "../components/hero-particles";
 
 // The home page is a deliberate minimal "gate" screen — not the full
 // marketing site (that lives at /for-brands, /for-clippers, /pricing,
@@ -11,7 +12,9 @@ import { IconInstagram, IconMegaphone } from "../components/icons";
 // through the two options below rather than stacked on this screen.
 export default function HomePage() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center px-6 py-16">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16">
+      <HeroParticles />
+
       <p className="absolute right-6 top-6 text-xs uppercase tracking-[0.2em] text-slate-500 sm:right-10 sm:top-10">
         Brands × Creators
       </p>
@@ -56,9 +59,10 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <Link href="/login" className="mt-8 text-xs text-slate-500 hover:text-slate-300">
-          Already have an account? <span className="underline">Log in</span>
-        </Link>
+        <span className="mt-10 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-slate-400">
+          <IconInstagram className="h-3.5 w-3.5" />
+          Instagram API Integration
+        </span>
       </div>
 
       <p className="absolute bottom-6 text-xs text-slate-600 sm:bottom-10">
