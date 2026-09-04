@@ -61,7 +61,17 @@ export class AuthController {
     const currentRefresh = req.cookies?.[REFRESH_TOKEN_COOKIE];
     const { accessToken, refreshToken, ...body } = await this.authService.refresh(currentRefresh);
     setSessionCookies(res, accessToken, refreshToken);
-    return body;
+
+    // Each frontend's own middleware calls this endpoint server-side to
+    // silently refresh an expired access token during navigation (see
+    // packages/utilities/src/session.ts refreshSessionAtEdge) and can't
+    // reliably parse this response's Set-Cookie headers back out of a
+    // generic fetch(). It proves it's trusted by presenting AUTH_SECRET —
+    // shared only between this API and each frontend's server-side env,
+    // never sent by a browser — and gets the raw tokens back in the body
+    // too, on top of the cookies set above.
+    const isTrustedEdgeCaller = req.headers["x-edge-refresh-secret"] === getEnv().AUTH_SECRET;
+    return isTrustedEdgeCaller ? { ...body, accessToken, refreshToken } : body;
   }
 
   @Public()
