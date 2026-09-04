@@ -8,6 +8,9 @@ import { apiFetchClient } from "../../../../lib/api-client";
 
 const OBJECTIVES = ["DISTRIBUTION", "VIEWS", "REACH", "ENGAGEMENT", "QUALITY_PERFORMANCE"] as const;
 const DEFAULT_OBJECTIVE: (typeof OBJECTIVES)[number] = "VIEWS";
+// The backend's `type` field is a free-form string (see CreateCampaignDto) —
+// this list is just a curated set of common campaign types for the picker.
+const CAMPAIGN_TYPES = ["Product Launch", "Brand Awareness", "Sale / Promotion", "Event", "UGC / Testimonial", "App Install", "Other"];
 const STEPS = ["Basic Information", "Content", "Creator Requirements", "Performance Targets", "Budget", "Review"];
 
 /**
@@ -135,7 +138,16 @@ export default function CreateCampaignPage() {
         {step === 0 && (
           <div className="flex flex-col gap-3">
             <Field label="Campaign Name"><Input value={name} onChange={(e) => setName(e.target.value)} required /></Field>
-            <Field label="Campaign Type"><Input value={type} onChange={(e) => setType(e.target.value)} placeholder="e.g. product launch" /></Field>
+            <Field label="Campaign Type">
+              <Select value={type} onChange={(e) => setType(e.target.value)}>
+                <option value="">Select a type…</option>
+                {CAMPAIGN_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </Select>
+            </Field>
             <Field label="Description"><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
             <Field label="Objective">
               <Select value={objective} onChange={(e) => setObjective(e.target.value)}>
