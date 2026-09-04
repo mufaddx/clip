@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Card, Field, Input, Select } from "@clip/ui";
 import { apiFetchClient } from "../../lib/api-client";
+
+interface CategoryOption {
+  id: string;
+  name: string;
+}
 
 const STEPS = ["Account Details", "Organization Details", "Industry and Category", "Team Setup", "Review"];
 const STEP_DESCRIPTIONS = [
@@ -24,14 +29,29 @@ export default function BrandOnboardingPage() {
   const [companyName, setCompanyName] = useState("");
   const [website, setWebsite] = useState("");
   const [industry, setIndustry] = useState(INDUSTRIES[0]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiFetchClient<CategoryOption[]>("/v1/categories")
+      .then(setCategories)
+      .catch(() => setCategories([])); // non-fatal — the picker just shows empty if this fails
+  }, []);
+
+  function toggleCategory(id: string) {
+    setSelectedCategoryIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
 
   async function finish() {
     setBusy(true);
     setError(null);
     try {
-      await apiFetchClient("/v1/brands/me", { method: "PATCH", body: JSON.stringify({ companyName, website, industry }) });
+      await apiFetchClient("/v1/brands/me", {
+        method: "PATCH",
+        body: JSON.stringify({ companyName, website, industry, categoryIds: selectedCategoryIds }),
+      });
       await apiFetchClient("/v1/users/me/onboarding-status", { method: "PATCH", body: JSON.stringify({ step: "review", complete: true }) });
       window.location.href = "/dashboard";
     } catch (e) {
@@ -81,15 +101,42 @@ export default function BrandOnboardingPage() {
             </>
           )}
           {step === 2 && (
-            <Field label="Industry">
-              <Select value={industry} onChange={(e) => setIndustry(e.target.value)}>
-                {INDUSTRIES.map((i) => (
-                  <option key={i} value={i}>
-                    {i}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <>
+              <Field label="Industry">
+                <Select value={industry} onChange={(e) => setIndustry(e.target.value)}>
+                  {INDUSTRIES.map((i) => (
+                    <option key={i} value={i}>
+                      {i}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="Content categories your campaigns fit into">
+                <div className="flex flex-wrap gap-2">
+                  {categories.length === 0 ? (
+                    <p className="text-sm text-slate-400">Loading categories…</p>
+                  ) : (
+                    categories.map((c) => {
+                      const active = selectedCategoryIds.includes(c.id);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggleCategory(c.id)}
+                          className={
+                            active
+                              ? "rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white"
+                              : "rounded-full border border-slate-200 px-4 py-1.5 text-sm text-slate-600 hover:border-slate-300"
+                          }
+                        >
+                          {c.name}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </Field>
+            </>
           )}
           {step === 3 && (
             <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
@@ -109,6 +156,17 @@ export default function BrandOnboardingPage() {
               <div className="flex items-center justify-between px-4 py-3 text-sm">
                 <span className="text-slate-500">Industry</span>
                 <span className="font-medium text-ink">{industry}</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3 text-sm">
+                <span className="text-slate-500">Categories</span>
+                <span className="max-w-[220px] truncate font-medium text-ink">
+                  {selectedCategoryIds.length > 0
+                    ? categories
+                        .filter((c) => selectedCategoryIds.includes(c.id))
+                        .map((c) => c.name)
+                        .join(", ")
+                    : "—"}
+                </span>
               </div>
             </div>
           )}

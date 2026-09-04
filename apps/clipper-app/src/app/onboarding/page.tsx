@@ -1,17 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Card, Field, Input, Textarea } from "@clip/ui";
 import { apiFetchClient } from "../../lib/api-client";
 
 const STEPS = ["Basic Profile", "Content Categories", "Creator Preferences", "Instagram Connection", "Review"];
 const STEP_DESCRIPTIONS = [
   "This is what brands see when reviewing your campaign applications.",
-  "You can refine your content categories any time from Profile.",
+  "Categories help match you to relevant campaigns — pick as many as apply.",
   "Campaign type preferences refine your Recommended tab over time.",
   "Required before you can accept a campaign — connect now or later.",
   "Double-check everything, then head to your dashboard.",
 ];
+
+interface CategoryOption {
+  id: string;
+  name: string;
+}
 
 /**
  * Clipper onboarding — see docs/users/ONBOARDING_FLOW.md "Clipper
@@ -22,9 +27,21 @@ export default function ClipperOnboardingPage() {
   const [step, setStep] = useState(0);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [instagramConnected, setInstagramConnected] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiFetchClient<CategoryOption[]>("/v1/categories")
+      .then(setCategories)
+      .catch(() => setCategories([])); // non-fatal — the picker just shows empty if this fails
+  }, []);
+
+  function toggleCategory(id: string) {
+    setSelectedCategoryIds((prev) => (prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]));
+  }
 
   async function connectInstagram() {
     try {
@@ -39,7 +56,10 @@ export default function ClipperOnboardingPage() {
     setBusy(true);
     setError(null);
     try {
-      await apiFetchClient("/v1/clippers/me", { method: "PATCH", body: JSON.stringify({ displayName, bio }) });
+      await apiFetchClient("/v1/clippers/me", {
+        method: "PATCH",
+        body: JSON.stringify({ displayName, bio, categoryIds: selectedCategoryIds }),
+      });
       await apiFetchClient("/v1/users/me/onboarding-status", { method: "PATCH", body: JSON.stringify({ step: "review", complete: true }) });
       window.location.href = "/dashboard";
     } catch (e) {
@@ -85,8 +105,28 @@ export default function ClipperOnboardingPage() {
           )}
 
           {step === 1 && (
-            <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
-              Categories help match you to relevant campaigns. You&apos;ll set these up from your Profile page whenever you like.
+            <div className="flex flex-wrap gap-2">
+              {categories.length === 0 ? (
+                <p className="text-sm text-slate-400">Loading categories…</p>
+              ) : (
+                categories.map((c) => {
+                  const active = selectedCategoryIds.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => toggleCategory(c.id)}
+                      className={
+                        active
+                          ? "rounded-full bg-brand-600 px-4 py-1.5 text-sm font-medium text-white"
+                          : "rounded-full border border-slate-200 px-4 py-1.5 text-sm text-slate-600 hover:border-slate-300"
+                      }
+                    >
+                      {c.name}
+                    </button>
+                  );
+                })
+              )}
             </div>
           )}
 
@@ -131,6 +171,17 @@ export default function ClipperOnboardingPage() {
               <div className="flex items-center justify-between px-4 py-3 text-sm">
                 <span className="text-slate-500">Bio</span>
                 <span className="max-w-[220px] truncate font-medium text-ink">{bio || "—"}</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-3 text-sm">
+                <span className="text-slate-500">Categories</span>
+                <span className="max-w-[220px] truncate font-medium text-ink">
+                  {selectedCategoryIds.length > 0
+                    ? categories
+                        .filter((c) => selectedCategoryIds.includes(c.id))
+                        .map((c) => c.name)
+                        .join(", ")
+                    : "—"}
+                </span>
               </div>
               <div className="flex items-center justify-between px-4 py-3 text-sm">
                 <span className="text-slate-500">Instagram</span>
