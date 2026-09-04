@@ -11,6 +11,7 @@ export * from "./stat-card";
 export * from "./empty-state";
 export * from "./nav";
 export * from "./sidebar";
+export * from "./page-header-context";
 export * from "./header";
 export * from "./app-shell";
 export * from "./table";

@@ -20,14 +20,21 @@ export function Sidebar({ items, activePath, logo, collapsed }: SidebarProps) {
   return (
     <nav
       className={cn(
-        "flex h-full flex-col gap-1 border-r border-slate-200 bg-white p-3",
+        "flex h-full flex-col border-r border-slate-200 bg-white",
         collapsed ? "w-16" : "w-60"
       )}
     >
-      {logo ? <div className="mb-4 px-2">{logo}</div> : null}
-      {items.map((item) => (
-        <SidebarGroup key={item.href} item={item} activePath={activePath} collapsed={collapsed} />
-      ))}
+      {/* Same height + bottom border as the top Header bar, so the two
+          form one continuous line across the full width and the page
+          heading (rendered in Header) lines up with the logo. */}
+      {logo ? (
+        <div className="flex h-16 shrink-0 items-center border-b border-slate-200 px-4">{logo}</div>
+      ) : null}
+      <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+        {items.map((item) => (
+          <SidebarGroup key={item.href} item={item} activePath={activePath} collapsed={collapsed} />
+        ))}
+      </div>
     </nav>
   );
 }

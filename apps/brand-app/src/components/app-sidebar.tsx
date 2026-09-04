@@ -10,7 +10,7 @@ export function AppSidebar() {
     <Sidebar
       items={brandNav}
       activePath={pathname}
-      logo={<img src="/logo-wordmark.png" alt="Vidlix" className="h-5 w-auto" />}
+      logo={<img src="/logo-wordmark.png" alt="Vidlix" className="h-7 w-auto" />}
     />
   );
 }
