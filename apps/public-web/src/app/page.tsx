@@ -15,23 +15,27 @@ export default function HomePage() {
     <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-16">
       <HeroParticles />
 
-      <p className="absolute right-6 top-6 text-xs uppercase tracking-[0.2em] text-slate-500 sm:right-10 sm:top-10">
-        Brands × Creators
-      </p>
-
       <div className="relative z-10 flex flex-col items-center text-center">
+        {/* Meta's own mark — not "Verified by Meta" (that would misrepresent
+            standard Instagram API app review as a formal Meta endorsement
+            this platform doesn't have). This just factually names the
+            technology Instagram integration is built on, the same pattern
+            as any "Powered by Stripe" style badge. */}
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-slate-400">
+          <img src="/meta-icon.png" alt="Meta" className="h-3.5 w-3.5" />
+          Powered by Meta&apos;s Instagram API
+        </span>
+
         <img
           src="/logo-wordmark-white.png"
           alt="Vidlix"
-          className="h-[60px] w-auto sm:h-[75px] md:h-[90px]"
+          className="mt-6 h-[60px] w-auto sm:h-[75px] md:h-[90px]"
         />
         <p className="mt-4 max-w-sm text-sm text-slate-400 sm:text-base">
           Creator distribution, paid on real performance.
         </p>
 
-        <span aria-hidden className="mt-10 h-10 w-px bg-brand-500" />
-
-        <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/signup?as=brand"
             className="group flex w-64 items-center gap-3 rounded-lg border border-white/15 px-5 py-4 text-left transition-colors hover:border-white/40 hover:bg-white/5"
@@ -58,11 +62,6 @@ export default function HomePage() {
             </span>
           </Link>
         </div>
-
-        <span className="mt-10 inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-slate-400">
-          <IconInstagram className="h-3.5 w-3.5" />
-          Instagram API Integration
-        </span>
       </div>
 
       <p className="absolute bottom-6 text-xs text-slate-600 sm:bottom-10">
