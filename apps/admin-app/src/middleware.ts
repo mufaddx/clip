@@ -79,7 +79,7 @@ function applyRefreshedCookies(response: NextResponse, accessToken: string, refr
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
-    domain: process.env.AUTH_COOKIE_DOMAIN ?? ".localhost",
+    domain: process.env.AUTH_COOKIE_DOMAIN ?? (process.env.NODE_ENV === "production" ? ".vidlix.in" : ".localhost"),
     path: "/",
   };
   response.cookies.set(ACCESS_TOKEN_COOKIE, accessToken, { ...common, maxAge: 15 * 60 });

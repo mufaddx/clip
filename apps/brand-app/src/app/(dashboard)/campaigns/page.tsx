@@ -37,7 +37,7 @@ export default function CampaignsPage() {
         ) : campaigns.length === 0 ? (
           <EmptyState
             title="Create your first campaign"
-            description="Launch a campaign to reach CLIP's creator network."
+            description="Launch a campaign to reach Vidlix's creator network."
             action={<Link href="/campaigns/create"><Button variant="secondary">Create Campaign</Button></Link>}
           />
         ) : (

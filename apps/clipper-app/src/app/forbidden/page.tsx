@@ -10,7 +10,7 @@ export default function ForbiddenPage() {
         brand or admin, use the correct app.
       </p>
       <a href={publicUrl} className="mt-6 text-brand-600 hover:underline">
-        Back to CLIP
+        Back to Vidlix
       </a>
     </main>
   );

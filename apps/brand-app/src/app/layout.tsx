@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "../styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "CLIP for Brands",
+  title: "Vidlix for Brands",
   description: "Create campaigns, track creator performance, and manage your budget.",
 };
 

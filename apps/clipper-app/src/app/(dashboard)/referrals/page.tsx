@@ -37,7 +37,7 @@ export default function ReferralsPage() {
 
   return (
     <div>
-      <PageHeader title="Referral Program" description="Invite others to CLIP and earn rewards." />
+      <PageHeader title="Referral Program" description="Invite others to Vidlix and earn rewards." />
 
       <Card>
         <p className="text-sm font-medium text-slate-700">Your referral link</p>

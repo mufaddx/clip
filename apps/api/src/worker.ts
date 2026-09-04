@@ -71,7 +71,7 @@ async function bootstrapWorkers() {
     enqueueExpiringAccountRefreshes().catch((err) => console.error("enqueueExpiringAccountRefreshes failed", err));
   }, 60 * 60 * 1000); // hourly
 
-  console.log("CLIP worker process started: notifications, instagram-sync, reel-detection, metrics-sync, earnings, referral-rewards.");
+  console.log("Vidlix worker process started: notifications, instagram-sync, reel-detection, metrics-sync, earnings, referral-rewards.");
 
   const shutdown = async () => {
     await Promise.all(workers.map((w) => w.close()));

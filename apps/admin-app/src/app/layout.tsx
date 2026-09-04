@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "../styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "CLIP Admin",
+  title: "Vidlix Admin",
   description: "Platform management: users, campaigns, finance, and security.",
 };
 
