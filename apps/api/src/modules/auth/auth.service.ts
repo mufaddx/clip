@@ -1,26 +1,37 @@
 import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as argon2 from "argon2";
-import { createHash, randomBytes } from "crypto";
-import { prisma } from "@clip/db";
-import type { SessionUser, LoginResponseDto } from "@clip/types";
+import { createHash, randomBytes, randomInt } from "crypto";
+import { prisma, type OtpPurpose } from "@clip/db";
+import type { SessionUser, LoginResponseDto, RegisterResponseDto } from "@clip/types";
+import { sendEmailNow } from "../../common/email";
 import type { LoginDto } from "./dto/login.dto";
 import type { SignupDto } from "./dto/signup.dto";
 
-/** What issueSession/register/login/refresh return — the controller strips
+/** What issueSession/login/refresh return — the controller strips
  * accessToken/refreshToken off into cookies before responding to the client. */
 export type SessionTokens = LoginResponseDto & { accessToken: string; refreshToken: string };
+
+const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Business logic for authentication — the only layer that touches @clip/db
  * for this module, per docs/architecture/BACKEND_ARCHITECTURE.md. Controllers
  * only validate input and delegate here.
+ *
+ * Email verification (docs/users/AUTHENTICATION_FLOW.md "Email
+ * verification"): register() creates the account (status
+ * PENDING_VERIFICATION, matching the schema default) and emails a 6-digit
+ * code instead of issuing a session immediately. verifyEmail() is the only
+ * place that actually flips status to ACTIVE and hands back a session —
+ * login() refuses PENDING_VERIFICATION accounts (EMAIL_NOT_VERIFIED) so a
+ * password alone can never skip verification.
  */
 @Injectable()
 export class AuthService {
   constructor(private readonly jwtService: JwtService) {}
 
-  async register(dto: SignupDto): Promise<SessionTokens> {
+  async register(dto: SignupDto): Promise<RegisterResponseDto> {
     const existing = await prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException({ code: "EMAIL_IN_USE", message: "An account with this email already exists." });
@@ -39,7 +50,10 @@ export class AuthService {
       // BrandProfile/CreatorProfile existing (see their getBrandId/
       // getCreatorId), so this can't wait for the onboarding wizard to run.
       // Onboarding (docs/users/ONBOARDING_FLOW.md) refines these fields
-      // (categories, org details, etc.) rather than creating the row.
+      // (categories, org details, etc.) rather than creating the row. The
+      // real name arrives via the post-verification "complete profile"
+      // step (PATCH /v1/brands/me or /v1/clippers/me) — this placeholder
+      // just satisfies the not-null constraint until then.
       await tx.wallet.create({
         data: {
           userId: created.id,
@@ -69,7 +83,33 @@ export class AuthService {
       return created;
     });
 
-    return this.issueSession(user.id, user.email, role, false);
+    await this.sendOtp(user.id, user.email, "EMAIL_VERIFICATION");
+    return { email: user.email, requiresVerification: true };
+  }
+
+  /** The only route that turns a PENDING_VERIFICATION account into a real session. */
+  async verifyEmail(email: string, code: string): Promise<SessionTokens> {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new UnauthorizedException({ code: "OTP_INVALID", message: "That code isn't right." });
+    }
+
+    await this.consumeOtp(user.id, "EMAIL_VERIFICATION", code);
+
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { status: "ACTIVE", emailVerifiedAt: new Date() },
+    });
+
+    return this.issueSession(updated.id, updated.email, updated.role, updated.onboardingComplete);
+  }
+
+  /** Silently no-ops for an unknown email or an already-verified account —
+   * never reveals which case it was. */
+  async resendVerification(email: string): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || user.status !== "PENDING_VERIFICATION") return;
+    await this.sendOtp(user.id, user.email, "EMAIL_VERIFICATION");
   }
 
   async login(dto: LoginDto): Promise<SessionTokens> {
@@ -85,6 +125,13 @@ export class AuthService {
     const valid = await argon2.verify(user.passwordHash, dto.password);
     if (!valid) {
       throw new UnauthorizedException({ code: "INVALID_CREDENTIALS", message: "Invalid email or password." });
+    }
+
+    if (user.status === "PENDING_VERIFICATION") {
+      // Correct password, but they never finished the OTP step — the
+      // frontend catches this code and drops them back into OTP entry
+      // (re-sending a code) instead of a generic login failure.
+      throw new UnauthorizedException({ code: "EMAIL_NOT_VERIFIED", message: "Please verify your email to continue." });
     }
 
     return this.issueSession(user.id, user.email, user.role, user.onboardingComplete);
@@ -143,44 +190,39 @@ export class AuthService {
   }
 
   /**
-   * Issues a signed, time-limited reset token — see
+   * Emails a 6-digit password-reset code — see
    * docs/users/AUTHENTICATION_FLOW.md "Password reset". Always resolves
-   * (never reveals whether the email exists); logs the reset link since no
-   * email provider is configured yet (docs/operations/NOTIFICATION_SYSTEM.md
-   * "Email" — real delivery is a later pass).
+   * (never reveals whether the email exists). Also used by
+   * provisionAccountWithResetLink below to let a newly-provisioned admin
+   * set their first password.
    */
   async requestPasswordReset(email: string): Promise<void> {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) return;
-
-    const token = await this.jwtService.signAsync({ sub: user.id, purpose: "password_reset" }, { expiresIn: "1h" });
-    console.log(`[email stub] password reset link for ${email}: /reset-password?token=${token}`);
+    await this.sendOtp(user.id, user.email, "PASSWORD_RESET");
   }
 
-  /** Verifies the reset token, updates the password, and revokes every existing refresh token for the account. */
-  async resetPassword(token: string, newPassword: string): Promise<void> {
-    let payload: { sub: string; purpose: string };
-    try {
-      payload = await this.jwtService.verifyAsync(token);
-    } catch {
-      throw new UnauthorizedException({ code: "TOKEN_EXPIRED", message: "This reset link has expired or is invalid." });
+  /** Verifies the reset code, updates the password, and revokes every existing refresh token for the account. */
+  async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      throw new UnauthorizedException({ code: "OTP_INVALID", message: "That code isn't right." });
     }
-    if (payload.purpose !== "password_reset") {
-      throw new UnauthorizedException({ code: "INVALID_TOKEN", message: "This link can't be used to reset a password." });
-    }
+
+    await this.consumeOtp(user.id, "PASSWORD_RESET", code);
 
     const passwordHash = await argon2.hash(newPassword);
     await prisma.$transaction([
-      prisma.user.update({ where: { id: payload.sub }, data: { passwordHash } }),
-      prisma.refreshToken.updateMany({ where: { userId: payload.sub, revokedAt: null }, data: { revokedAt: new Date() } }),
+      prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
+      prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } }),
     ]);
   }
 
   /**
    * Used by AdminService to provision an ADMIN/SUPPORT/FINANCE_ADMIN account
-   * — see docs/users/ADMIN_USER_FLOW.md "Provisioning". The invitee gets a
-   * set-password link (reusing the reset-password flow) rather than a
-   * temporary password.
+   * — see docs/users/ADMIN_USER_FLOW.md "Provisioning". The invitee gets the
+   * same OTP-based "set your password" email as everyone else, via
+   * requestPasswordReset — there's no separate admin-only mechanism.
    */
   async provisionAccountWithResetLink(email: string, role: SessionUser["role"]): Promise<void> {
     const unusablePasswordHash = await argon2.hash(randomBytes(32).toString("hex"));
@@ -190,6 +232,37 @@ export class AuthService {
       update: {},
     });
     await this.requestPasswordReset(email);
+  }
+
+  /** Generates a 6-digit code, stores its hash (replacing any previous code
+   * for the same purpose), and emails it immediately — not queued, since
+   * the user is actively waiting for it. See common/email.ts. */
+  private async sendOtp(userId: string, email: string, purpose: OtpPurpose): Promise<void> {
+    const code = randomInt(100000, 1000000).toString(); // always 6 digits (100000–999999)
+    const codeHash = hashToken(code);
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+    await prisma.emailOtp.upsert({
+      where: { userId_purpose: { userId, purpose } },
+      create: { userId, purpose, codeHash, expiresAt },
+      update: { codeHash, expiresAt },
+    });
+
+    const subject = purpose === "EMAIL_VERIFICATION" ? "Verify your Vidlix email" : "Reset your Vidlix password";
+    const html = `<p>Your Vidlix verification code is <strong style="font-size:20px">${code}</strong>.</p><p>It expires in 10 minutes. If you didn't request this, you can ignore this email.</p>`;
+    await sendEmailNow(email, subject, html);
+  }
+
+  /** Throws OTP_EXPIRED/OTP_INVALID, or deletes the row and returns on success. */
+  private async consumeOtp(userId: string, purpose: OtpPurpose, code: string): Promise<void> {
+    const row = await prisma.emailOtp.findUnique({ where: { userId_purpose: { userId, purpose } } });
+    if (!row || row.expiresAt < new Date()) {
+      throw new UnauthorizedException({ code: "OTP_EXPIRED", message: "This code has expired — request a new one." });
+    }
+    if (row.codeHash !== hashToken(code)) {
+      throw new UnauthorizedException({ code: "OTP_INVALID", message: "That code isn't right." });
+    }
+    await prisma.emailOtp.delete({ where: { id: row.id } });
   }
 }
 

@@ -6,6 +6,8 @@ import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "../../common/constant
 import { AuthService } from "./auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { SignupDto } from "./dto/signup.dto";
+import { VerifyEmailDto } from "./dto/verify-email.dto";
+import { ResendVerificationDto } from "./dto/resend-verification.dto";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { ResetPasswordDto } from "./dto/reset-password.dto";
 
@@ -18,12 +20,29 @@ import { ResetPasswordDto } from "./dto/reset-password.dto";
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  // No session cookies here — register() only creates the account and
+  // emails an OTP; verifyEmail() below is what actually issues a session.
   @Public()
   @Post("register")
-  async register(@Body() dto: SignupDto, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, ...body } = await this.authService.register(dto);
+  async register(@Body() dto: SignupDto) {
+    return this.authService.register(dto);
+  }
+
+  @Public()
+  @Post("verify-email")
+  @HttpCode(200)
+  async verifyEmail(@Body() dto: VerifyEmailDto, @Res({ passthrough: true }) res: Response) {
+    const { accessToken, refreshToken, ...body } = await this.authService.verifyEmail(dto.email, dto.code);
     setSessionCookies(res, accessToken, refreshToken);
     return body;
+  }
+
+  @Public()
+  @Post("resend-verification")
+  @HttpCode(200)
+  async resendVerification(@Body() dto: ResendVerificationDto) {
+    await this.authService.resendVerification(dto.email);
+    return { success: true }; // always success — never reveals account state
   }
 
   @Public()
@@ -67,7 +86,7 @@ export class AuthController {
   @Post("reset-password")
   @HttpCode(200)
   async resetPassword(@Body() dto: ResetPasswordDto) {
-    await this.authService.resetPassword(dto.token, dto.newPassword);
+    await this.authService.resetPassword(dto.email, dto.code, dto.newPassword);
     return { success: true };
   }
 }

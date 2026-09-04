@@ -39,6 +39,28 @@ enum UserStatus {
   SUSPENDED
 }
 
+enum OtpPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+// One-time codes for signup email verification and password reset — see
+// docs/users/AUTHENTICATION_FLOW.md. One row per (user, purpose): a new
+// request overwrites the previous code rather than accumulating rows.
+model EmailOtp {
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  purpose   OtpPurpose
+  codeHash  String     @map("code_hash")
+  expiresAt DateTime   @map("expires_at")
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, purpose])
+  @@map("email_otps")
+}
+
 enum TeamPermission {
   CAMPAIGNS_VIEW
   CAMPAIGNS_CREATE
@@ -221,6 +243,7 @@ model User {
   referralsMade  Referral[]     @relation("Referrer")
   referralsReceived Referral[] @relation("Referred")
   refreshTokens  RefreshToken[]
+  emailOtps      EmailOtp[]
 
   @@map("users")
 }

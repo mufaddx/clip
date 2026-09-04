@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 /** Shared dark "glass" panel + input styling for every (auth) page — keeps
- * login/signup/forgot-password/reset-password visually identical instead
+ * login/signup/forgot-password visually identical instead
  * of each page hand-rolling its own card. */
 export function AuthCard({ className = "", children }: { className?: string; children: ReactNode }) {
   return (
