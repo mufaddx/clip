@@ -211,9 +211,22 @@ export class InstagramService {
     return decryptToken(token.encryptedAccessToken, env.TOKEN_ENCRYPTION_KEY!);
   }
 
+  /** Shared ownership check for the profile/media endpoints below — mirrors disconnect(). */
+  private async requireOwnedAccount(creatorUserId: string, accountId: string) {
+    const creator = await prisma.creatorProfile.findUniqueOrThrow({ where: { userId: creatorUserId } });
+    const account = await prisma.instagramAccount.findUnique({ where: { id: accountId } });
+    if (!account || account.creatorId !== creator.id) {
+      throw new ForbiddenException({ code: "FORBIDDEN", message: "This account isn't connected to your profile." });
+    }
+    return account;
+  }
+
   /**
    * Lists recent media on a connected account — feeds the Reel Detection
-   * Worker's "Path A" auto-discovery (docs/campaigns/REEL_SUBMISSION.md).
+   * Worker's "Path A" auto-discovery (docs/campaigns/REEL_SUBMISSION.md) as
+   * well as the clipper-facing "My Instagram" profile view (media_url/
+   * thumbnail_url/like_count/comments_count are only used by the latter;
+   * the worker ignores the extra fields).
    */
   async listRecentMedia(instagramAccountId: string, limit = 25) {
     const env = this.requireMetaConfig();
@@ -221,7 +234,10 @@ export class InstagramService {
     const accessToken = await this.getDecryptedToken(instagramAccountId, env);
 
     const url = new URL(`https://graph.instagram.com/${env.META_GRAPH_API_VERSION}/${account.platformUserId}/media`);
-    url.searchParams.set("fields", "id,permalink,timestamp,media_type,caption");
+    url.searchParams.set(
+      "fields",
+      "id,permalink,timestamp,media_type,caption,media_url,thumbnail_url,like_count,comments_count"
+    );
     url.searchParams.set("limit", String(limit));
     url.searchParams.set("access_token", accessToken);
 
@@ -229,8 +245,59 @@ export class InstagramService {
     if (!res.ok) {
       throw new BadRequestException({ code: "INSTAGRAM_MEDIA_FETCH_FAILED", message: "Failed to list recent media." });
     }
-    const body = (await res.json()) as { data: Array<{ id: string; permalink: string; timestamp: string; media_type: string; caption?: string }> };
+    const body = (await res.json()) as {
+      data: Array<{
+        id: string;
+        permalink: string;
+        timestamp: string;
+        media_type: string;
+        caption?: string;
+        media_url?: string;
+        thumbnail_url?: string;
+        like_count?: number;
+        comments_count?: number;
+      }>;
+    };
     return body.data;
+  }
+
+  /** Ownership-checked wrapper around listRecentMedia() for the clipper's own "My Instagram" page. */
+  async listRecentMediaForCreator(creatorUserId: string, instagramAccountId: string, limit = 12) {
+    await this.requireOwnedAccount(creatorUserId, instagramAccountId);
+    return this.listRecentMedia(instagramAccountId, limit);
+  }
+
+  /**
+   * Account-level profile stats (followers, media count, avatar) — powers
+   * the clipper's "My Instagram" profile view. Separate from
+   * connectAccount()'s narrower fetchProfile(): that one only needs
+   * id/username/account_type to identify the account; this needs the full
+   * public-facing picture, and is called on-demand from the frontend
+   * rather than at connect time (these numbers change constantly).
+   */
+  async getAccountStats(creatorUserId: string, instagramAccountId: string) {
+    const env = this.requireMetaConfig();
+    await this.requireOwnedAccount(creatorUserId, instagramAccountId);
+    const accessToken = await this.getDecryptedToken(instagramAccountId, env);
+
+    const url = new URL(`https://graph.instagram.com/${env.META_GRAPH_API_VERSION}/me`);
+    url.searchParams.set("fields", "id,username,account_type,media_count,followers_count,profile_picture_url");
+    url.searchParams.set("access_token", accessToken);
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error("Instagram account stats fetch failed:", res.status, detail);
+      throw new BadRequestException({ code: "INSTAGRAM_STATS_FETCH_FAILED", message: "Failed to fetch account stats." });
+    }
+    return res.json() as Promise<{
+      id: string;
+      username: string;
+      account_type: string;
+      media_count?: number;
+      followers_count?: number;
+      profile_picture_url?: string;
+    }>;
   }
 
   /** Pulls current insights for one media item — feeds the Metrics Sync Worker. See docs/performance/METRICS_ARCHITECTURE.md. */

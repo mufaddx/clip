@@ -40,6 +40,29 @@ export interface InstagramAccount {
   connectedAt: string;
 }
 
+// Live Graph API responses (Instagram's own field names, not Prisma's) —
+// see InstagramService.getAccountStats/listRecentMediaForCreator.
+export interface InstagramProfileStats {
+  id: string;
+  username: string;
+  account_type: string;
+  media_count?: number;
+  followers_count?: number;
+  profile_picture_url?: string;
+}
+
+export interface InstagramMediaItem {
+  id: string;
+  permalink: string;
+  timestamp: string;
+  media_type: string;
+  caption?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  like_count?: number;
+  comments_count?: number;
+}
+
 export interface Wallet {
   id: string;
   availableBalance: number;

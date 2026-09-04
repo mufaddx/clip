@@ -72,6 +72,21 @@ export class InstagramController {
     return { success: true };
   }
 
+  // ── Profile view (followers/media stats + recent posts) — see
+  // docs/architecture/META_INSTAGRAM_INTEGRATION.md ──
+
+  @Roles("CLIPPER")
+  @Get("accounts/:id/profile")
+  async getProfile(@CurrentUser() user: SessionUser, @Param("id") id: string) {
+    return this.instagramService.getAccountStats(user.id, id);
+  }
+
+  @Roles("CLIPPER")
+  @Get("accounts/:id/media")
+  async getMedia(@CurrentUser() user: SessionUser, @Param("id") id: string) {
+    return this.instagramService.listRecentMediaForCreator(user.id, id, 12);
+  }
+
   // ── Meta webhook — see docs/api/WEBHOOKS.md "Meta / Instagram webhooks" ──
 
   /** Meta's verification handshake, required when first registering the webhook subscription. */
