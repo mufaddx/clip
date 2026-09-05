@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { JwtModule } from "@nestjs/jwt";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { getEnv } from "@clip/config";
 import { AuditModule } from "./common/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
@@ -37,6 +38,15 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
         return { secret: env.AUTH_SECRET, signOptions: { expiresIn: env.AUTH_ACCESS_TOKEN_TTL } };
       },
     }),
+    // Baseline abuse protection — see docs/architecture/SECURITY_ARCHITECTURE.md.
+    // There was previously NO rate limiting anywhere in the API: login,
+    // OTP verification (a 6-digit code — 900,000 possibilities), and
+    // password reset were all guessable without limit. This default
+    // applies globally (login/signup included, since they're @Public()
+    // but still real endpoints); tighter per-route limits on the
+    // brute-forceable auth endpoints are set with @Throttle() in
+    // AuthController.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
     AuditModule,
     AuthModule,
     UsersModule,
@@ -59,7 +69,10 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
     CategoriesModule,
   ],
   providers: [
-    // Two-layer guard model — see docs/api/API_AUTHORIZATION.md.
+    // Two-layer guard model — see docs/api/API_AUTHORIZATION.md. ThrottlerGuard
+    // runs first so a flooded/brute-forced route is rejected before it even
+    // reaches auth/permission checks.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },

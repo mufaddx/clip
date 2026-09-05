@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUrl,
   ValidateNested,
 } from "class-validator";
 import type { CampaignObjective } from "@clip/db";
@@ -97,7 +98,15 @@ export class CreateCampaignDto {
 }
 
 export class CampaignAssetDto {
-  @IsString()
+  // https-only, real protocol required — this URL later gets fetched
+  // server-side (MediaFingerprintService, for content-match verification),
+  // so a bare string here was an SSRF hole: nothing stopped a brand from
+  // pointing it at an internal address. This blocks the obviously-wrong
+  // shapes (file://, bare IPs without a scheme, etc.); MediaFingerprintService
+  // itself still checks the resolved IP isn't private/internal before
+  // fetching, since a syntactically valid https:// URL can still resolve
+  // to an internal address.
+  @IsUrl({ protocols: ["https"], require_protocol: true })
   mediaUrl!: string;
 
   @IsOptional()

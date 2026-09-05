@@ -1,4 +1,5 @@
 import { Body, Controller, HttpCode, Post, Req, Res } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import { getEnv } from "@clip/config";
 import { Public } from "../../common/decorators/public.decorator";
@@ -23,12 +24,16 @@ export class AuthController {
   // No session cookies here — register() only creates the account and
   // emails an OTP; verifyEmail() below is what actually issues a session.
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("register")
   async register(@Body() dto: SignupDto) {
     return this.authService.register(dto);
   }
 
+  // 10/min — a 6-digit OTP is only 900,000 possibilities; without a tight
+  // limit here it's brute-forceable well within its 10-minute validity.
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("verify-email")
   @HttpCode(200)
   async verifyEmail(@Body() dto: VerifyEmailDto, @Res({ passthrough: true }) res: Response) {
@@ -38,6 +43,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } }) // also caps email-bombing a target inbox
   @Post("resend-verification")
   @HttpCode(200)
   async resendVerification(@Body() dto: ResendVerificationDto) {
@@ -46,6 +52,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("login")
   @HttpCode(200)
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
@@ -85,6 +92,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 3, ttl: 60_000 } }) // also caps email-bombing a target inbox
   @Post("forgot-password")
   @HttpCode(200)
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
@@ -92,7 +100,11 @@ export class AuthController {
     return { success: true }; // always success — never reveals whether the email exists
   }
 
+  // Password-reset OTP guessing is the highest-value target here (a
+  // successful guess is a full account takeover) — same 10/min cap as
+  // verify-email.
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post("reset-password")
   @HttpCode(200)
   async resetPassword(@Body() dto: ResetPasswordDto) {
