@@ -6,6 +6,33 @@ import { PageHeader, Card, CardHeader, CardTitle, Button, CampaignStatusBadge, E
 import { formatCurrency } from "@clip/utilities";
 import { apiFetchClient } from "../../../../lib/api-client";
 import type { Campaign } from "../../../../lib/types";
+import { CampaignsListView } from "../../../../components/campaigns-list-view";
+
+// See docs/ui-ux/PAGE_SPECIFICATIONS.md "Brand app" — a single dynamic
+// segment handles both the sidebar's status-filtered list links (All
+// Campaigns, Drafts, Pending, Active, Paused, Completed — see lib/nav.tsx)
+// and the /campaigns/[id] detail page, since Next.js disallows two
+// differently-named dynamic segments at the same path position. This used
+// to be named [id] and only ever treated the segment as a literal campaign
+// id, so every one of those sidebar links 404'd with "Campaign not found."
+const SEGMENT_TAB: Record<string, string> = {
+  all: "ALL",
+  drafts: "DRAFT",
+  pending: "PENDING_REVIEW",
+  active: "LIVE",
+  paused: "PAUSED",
+  completed: "COMPLETED",
+};
+
+export default function CampaignSegmentPage() {
+  const params = useParams<{ segment: string }>();
+  const segment = params.segment;
+
+  if (segment in SEGMENT_TAB) {
+    return <CampaignsListView initialTab={SEGMENT_TAB[segment]} />;
+  }
+  return <CampaignDetail campaignId={segment} />;
+}
 
 interface CreatorRow {
   id: string;
@@ -14,9 +41,7 @@ interface CreatorRow {
   reels: Array<{ id: string; status: string; calculations: Array<{ score: number }> }>;
 }
 
-// /campaigns/[id] — see docs/ui-ux/PAGE_SPECIFICATIONS.md "Brand app".
-export default function CampaignDetailPage() {
-  const params = useParams<{ id: string }>();
+function CampaignDetail({ campaignId }: { campaignId: string }) {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [creators, setCreators] = useState<CreatorRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,9 +49,9 @@ export default function CampaignDetailPage() {
 
   async function load() {
     try {
-      const c = await apiFetchClient<Campaign>(`/v1/campaigns/${params.id}`);
+      const c = await apiFetchClient<Campaign>(`/v1/campaigns/${campaignId}`);
       setCampaign(c);
-      const cr = await apiFetchClient<CreatorRow[]>(`/v1/campaigns/${params.id}/creators`);
+      const cr = await apiFetchClient<CreatorRow[]>(`/v1/campaigns/${campaignId}/creators`);
       setCreators(cr);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load campaign.");
@@ -36,13 +61,13 @@ export default function CampaignDetailPage() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [campaignId]);
 
   async function action(path: string) {
     setBusy(true);
     setError(null);
     try {
-      await apiFetchClient(`/v1/campaigns/${params.id}/${path}`, { method: "POST" });
+      await apiFetchClient(`/v1/campaigns/${campaignId}/${path}`, { method: "POST" });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Action failed.");
